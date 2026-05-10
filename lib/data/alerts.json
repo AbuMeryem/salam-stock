@@ -1,0 +1,71 @@
+[
+  {
+    "id": "a-001",
+    "type": "ecart",
+    "severity": "critique",
+    "title": "Écart sur Olives Picholine",
+    "description": "18 kg réceptionnés contre 20 kg commandés (-10%) le 06/05. Fournisseur Maamora — vérifier le BL papier et déclencher un avoir.",
+    "date": "2026-05-06T09:00:00Z",
+    "related_id": "po-001"
+  },
+  {
+    "id": "a-002",
+    "type": "anomalie",
+    "severity": "critique",
+    "title": "Livraison sans bon de commande",
+    "description": "Harissa Le Phare livrée le 04/05 (5 unités) sans bon de commande correspondant. Vérifier auprès de Mehdi Tazi qui a signé la livraison.",
+    "date": "2026-05-04T10:00:00Z"
+  },
+  {
+    "id": "a-003",
+    "type": "vitesse",
+    "severity": "recommandation",
+    "title": "Rupture probable — Dattes Medjool",
+    "description": "Stock actuel 8 unités, vitesse d'écoulement 2,8/jour. Rupture estimée d'ici 3 jours. Recommandation : commander 24 unités à Deglet.",
+    "date": "2026-05-08T08:00:00Z",
+    "related_id": "p-003"
+  },
+  {
+    "id": "a-004",
+    "type": "suspicion",
+    "severity": "critique",
+    "title": "3 réceptions non photographiées cette semaine",
+    "description": "Mehdi Tazi a validé 3 réceptions sans photos de carton entre le 02/05 et le 08/05. Procédure interne non respectée — rappeler la consigne.",
+    "date": "2026-05-08T09:00:00Z",
+    "related_id": "u-mehdi"
+  },
+  {
+    "id": "a-005",
+    "type": "conformite",
+    "severity": "conformite",
+    "title": "Taux de photographie 96% sur 7 jours",
+    "description": "23 réceptions sur 24 ont été photographiées correctement cette semaine. Objectif 95% atteint, équipe au-dessus du standard.",
+    "date": "2026-05-08T08:30:00Z"
+  },
+  {
+    "id": "a-006",
+    "type": "recommandation",
+    "severity": "recommandation",
+    "title": "Réapprovisionner Semoule Ferrero",
+    "description": "Stock à 9 unités (seuil mini 25). Vendu en moyenne 8 unités/jour. Recommandation : commander 60 unités à Ferrero France.",
+    "date": "2026-05-08T08:00:00Z",
+    "related_id": "p-004"
+  },
+  {
+    "id": "a-007",
+    "type": "ecart",
+    "severity": "critique",
+    "title": "Coca-Cola Zero — écart 10%",
+    "description": "60 bouteilles commandées le 01/05, 54 reçues. Avoir en attente de Cevital France. Otmane a notifié le fournisseur.",
+    "date": "2026-05-03T11:00:00Z",
+    "related_id": "po-004"
+  },
+  {
+    "id": "a-008",
+    "type": "conformite",
+    "severity": "conformite",
+    "title": "Inventaires tournants — 7/7 jours réalisés",
+    "description": "Tous les inventaires quotidiens ont été réalisés cette semaine. Conformité moyenne 99,1%.",
+    "date": "2026-05-08T08:30:00Z"
+  }
+]

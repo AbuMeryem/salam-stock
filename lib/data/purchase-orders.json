@@ -1,0 +1,94 @@
+[
+  {
+    "id": "po-001",
+    "reference": "BC-2026-0142",
+    "supplier_id": "s-maamora",
+    "date_commande": "2026-05-07T09:00:00Z",
+    "date_livraison_prevue": "2026-05-09T08:00:00Z",
+    "status": "en_attente_reception",
+    "total_ht": 487.40,
+    "lignes": [
+      { "product_id": "p-001", "quantite_commandee": 30, "prix_unitaire": 4.20 },
+      { "product_id": "p-006", "quantite_commandee": 24, "prix_unitaire": 3.80 },
+      { "product_id": "p-007", "quantite_commandee": 60, "prix_unitaire": 1.40 },
+      { "product_id": "p-008", "quantite_commandee": 12, "prix_unitaire": 9.80 },
+      { "product_id": "p-009", "quantite_commandee": 24, "prix_unitaire": 3.10 },
+      { "product_id": "p-032", "quantite_commandee": 18, "prix_unitaire": 4.10 }
+    ]
+  },
+  {
+    "id": "po-002",
+    "reference": "BC-2026-0143",
+    "supplier_id": "s-doux",
+    "date_commande": "2026-05-07T11:30:00Z",
+    "date_livraison_prevue": "2026-05-09T09:00:00Z",
+    "status": "en_attente_reception",
+    "total_ht": 312.80,
+    "lignes": [
+      { "product_id": "p-013", "quantite_commandee": 24, "prix_unitaire": 5.20 },
+      { "product_id": "p-014", "quantite_commandee": 36, "prix_unitaire": 3.10 },
+      { "product_id": "p-033", "quantite_commandee": 24, "prix_unitaire": 2.80 },
+      { "product_id": "p-035", "quantite_commandee": 12, "prix_unitaire": 6.20 }
+    ]
+  },
+  {
+    "id": "po-003",
+    "reference": "BC-2026-0138",
+    "supplier_id": "s-sipa",
+    "date_commande": "2026-05-03T08:00:00Z",
+    "date_livraison_prevue": "2026-05-04T08:00:00Z",
+    "status": "recu_avec_ecart",
+    "total_ht": 218.60,
+    "lignes": [
+      { "product_id": "p-002", "quantite_commandee": 60, "prix_unitaire": 1.80 },
+      { "product_id": "p-015", "quantite_commandee": 48, "prix_unitaire": 1.20 },
+      { "product_id": "p-031", "quantite_commandee": 24, "prix_unitaire": 1.60 }
+    ],
+    "notes": "Écart de 2 unités sur Harissa, manquant non justifié par le livreur."
+  },
+  {
+    "id": "po-004",
+    "reference": "BC-2026-0135",
+    "supplier_id": "s-cevital",
+    "date_commande": "2026-05-01T08:30:00Z",
+    "date_livraison_prevue": "2026-05-03T10:00:00Z",
+    "status": "recu_avec_ecart",
+    "total_ht": 387.20,
+    "lignes": [
+      { "product_id": "p-024", "quantite_commandee": 60, "prix_unitaire": 0.95 },
+      { "product_id": "p-025", "quantite_commandee": 60, "prix_unitaire": 1.05 },
+      { "product_id": "p-026", "quantite_commandee": 36, "prix_unitaire": 0.90 },
+      { "product_id": "p-027", "quantite_commandee": 36, "prix_unitaire": 0.90 }
+    ],
+    "notes": "Suspicion : 6 bouteilles Coca manquantes vs BL papier, écart 10%."
+  },
+  {
+    "id": "po-005",
+    "reference": "BC-2026-0136",
+    "supplier_id": "s-lactel",
+    "date_commande": "2026-05-05T08:00:00Z",
+    "date_livraison_prevue": "2026-05-07T07:00:00Z",
+    "status": "recu_conforme",
+    "total_ht": 198.40,
+    "lignes": [
+      { "product_id": "p-010", "quantite_commandee": 48, "prix_unitaire": 1.20 },
+      { "product_id": "p-021", "quantite_commandee": 96, "prix_unitaire": 0.80 },
+      { "product_id": "p-034", "quantite_commandee": 18, "prix_unitaire": 3.80 }
+    ]
+  },
+  {
+    "id": "po-006",
+    "reference": "BC-2026-0134",
+    "supplier_id": "s-bonduelle",
+    "date_commande": "2026-04-30T08:00:00Z",
+    "date_livraison_prevue": "2026-05-02T09:00:00Z",
+    "status": "recu_conforme",
+    "total_ht": 416.30,
+    "lignes": [
+      { "product_id": "p-018", "quantite_commandee": 48, "prix_unitaire": 1.80 },
+      { "product_id": "p-019", "quantite_commandee": 48, "prix_unitaire": 1.40 },
+      { "product_id": "p-020", "quantite_commandee": 18, "prix_unitaire": 11.20 },
+      { "product_id": "p-023", "quantite_commandee": 60, "prix_unitaire": 1.40 }
+    ]
+  }
+]

@@ -1,0 +1,100 @@
+[
+  {
+    "id": "inv-h-001",
+    "date": "2026-05-08T11:00:00Z",
+    "user_id": "u-mehdi",
+    "status": "termine",
+    "conformite_pct": 99.2,
+    "items": [
+      { "product_id": "p-005", "stock_theoretical": 36, "stock_compte": 36, "ecart": 0 },
+      { "product_id": "p-018", "stock_theoretical": 38, "stock_compte": 38, "ecart": 0 },
+      { "product_id": "p-021", "stock_theoretical": 78, "stock_compte": 77, "ecart": -1 },
+      { "product_id": "p-029", "stock_theoretical": 18, "stock_compte": 18, "ecart": 0 },
+      { "product_id": "p-034", "stock_theoretical": 14, "stock_compte": 14, "ecart": 0 }
+    ]
+  },
+  {
+    "id": "inv-h-002",
+    "date": "2026-05-07T11:30:00Z",
+    "user_id": "u-otmane",
+    "status": "termine",
+    "conformite_pct": 100,
+    "items": [
+      { "product_id": "p-002", "stock_theoretical": 64, "stock_compte": 64, "ecart": 0 },
+      { "product_id": "p-007", "stock_theoretical": 52, "stock_compte": 52, "ecart": 0 },
+      { "product_id": "p-013", "stock_theoretical": 24, "stock_compte": 24, "ecart": 0 },
+      { "product_id": "p-022", "stock_theoretical": 22, "stock_compte": 22, "ecart": 0 },
+      { "product_id": "p-024", "stock_theoretical": 54, "stock_compte": 54, "ecart": 0 }
+    ]
+  },
+  {
+    "id": "inv-h-003",
+    "date": "2026-05-06T11:00:00Z",
+    "user_id": "u-mehdi",
+    "status": "termine",
+    "conformite_pct": 96.4,
+    "items": [
+      { "product_id": "p-003", "stock_theoretical": 12, "stock_compte": 8, "ecart": -4 },
+      { "product_id": "p-009", "stock_theoretical": 30, "stock_compte": 30, "ecart": 0 },
+      { "product_id": "p-016", "stock_theoretical": 18, "stock_compte": 18, "ecart": 0 },
+      { "product_id": "p-025", "stock_theoretical": 60, "stock_compte": 60, "ecart": 0 },
+      { "product_id": "p-030", "stock_theoretical": 24, "stock_compte": 24, "ecart": 0 }
+    ]
+  },
+  {
+    "id": "inv-h-004",
+    "date": "2026-05-05T11:30:00Z",
+    "user_id": "u-mehdi",
+    "status": "termine",
+    "conformite_pct": 100,
+    "items": [
+      { "product_id": "p-004", "stock_theoretical": 9, "stock_compte": 9, "ecart": 0 },
+      { "product_id": "p-006", "stock_theoretical": 22, "stock_compte": 22, "ecart": 0 },
+      { "product_id": "p-019", "stock_theoretical": 44, "stock_compte": 44, "ecart": 0 },
+      { "product_id": "p-026", "stock_theoretical": 36, "stock_compte": 36, "ecart": 0 },
+      { "product_id": "p-033", "stock_theoretical": 26, "stock_compte": 26, "ecart": 0 }
+    ]
+  },
+  {
+    "id": "inv-h-005",
+    "date": "2026-05-03T11:00:00Z",
+    "user_id": "u-otmane",
+    "status": "termine",
+    "conformite_pct": 98.1,
+    "items": [
+      { "product_id": "p-001", "stock_theoretical": 28, "stock_compte": 28, "ecart": 0 },
+      { "product_id": "p-008", "stock_theoretical": 14, "stock_compte": 13, "ecart": -1 },
+      { "product_id": "p-014", "stock_theoretical": 32, "stock_compte": 32, "ecart": 0 },
+      { "product_id": "p-020", "stock_theoretical": 16, "stock_compte": 16, "ecart": 0 },
+      { "product_id": "p-027", "stock_theoretical": 28, "stock_compte": 28, "ecart": 0 }
+    ]
+  },
+  {
+    "id": "inv-h-006",
+    "date": "2026-05-01T11:30:00Z",
+    "user_id": "u-mehdi",
+    "status": "termine",
+    "conformite_pct": 100,
+    "items": [
+      { "product_id": "p-010", "stock_theoretical": 48, "stock_compte": 48, "ecart": 0 },
+      { "product_id": "p-011", "stock_theoretical": 22, "stock_compte": 22, "ecart": 0 },
+      { "product_id": "p-017", "stock_theoretical": 26, "stock_compte": 26, "ecart": 0 },
+      { "product_id": "p-023", "stock_theoretical": 96, "stock_compte": 96, "ecart": 0 },
+      { "product_id": "p-031", "stock_theoretical": 20, "stock_compte": 20, "ecart": 0 }
+    ]
+  },
+  {
+    "id": "inv-h-007",
+    "date": "2026-04-29T11:00:00Z",
+    "user_id": "u-otmane",
+    "status": "termine",
+    "conformite_pct": 99,
+    "items": [
+      { "product_id": "p-012", "stock_theoretical": 18, "stock_compte": 18, "ecart": 0 },
+      { "product_id": "p-015", "stock_theoretical": 40, "stock_compte": 40, "ecart": 0 },
+      { "product_id": "p-018", "stock_theoretical": 38, "stock_compte": 37, "ecart": -1 },
+      { "product_id": "p-028", "stock_theoretical": 30, "stock_compte": 30, "ecart": 0 },
+      { "product_id": "p-035", "stock_theoretical": 12, "stock_compte": 12, "ecart": 0 }
+    ]
+  }
+]

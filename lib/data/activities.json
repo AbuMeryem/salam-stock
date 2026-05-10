@@ -1,0 +1,9 @@
+[
+  { "id": "act-001", "type": "reception", "label": "Réception BC-2026-0136 validée — Lactel (3 produits)", "user_id": "u-mehdi", "date": "2026-05-07T07:20:00Z" },
+  { "id": "act-002", "type": "inventaire", "label": "Inventaire tournant terminé — 5 produits, 99,2% conformité", "user_id": "u-mehdi", "date": "2026-05-08T11:00:00Z" },
+  { "id": "act-003", "type": "alerte", "label": "Alerte critique — Coca-Cola Zero, écart 10%", "user_id": "u-otmane", "date": "2026-05-03T11:00:00Z" },
+  { "id": "act-004", "type": "reception", "label": "Réception BC-2026-0138 validée avec écart — SIPA", "user_id": "u-mehdi", "date": "2026-05-04T09:30:00Z" },
+  { "id": "act-005", "type": "produit", "label": "Nouveau produit ajouté — Pâtes Filo Sidi Mansour", "user_id": "u-otmane", "date": "2026-05-04T15:20:00Z" },
+  { "id": "act-006", "type": "inventaire", "label": "Inventaire tournant — 100% conforme", "user_id": "u-otmane", "date": "2026-05-07T11:30:00Z" },
+  { "id": "act-007", "type": "reception", "label": "Réception BC-2026-0134 — Bonduelle (4 produits)", "user_id": "u-otmane", "date": "2026-05-02T09:15:00Z" }
+]

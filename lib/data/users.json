@@ -1,0 +1,23 @@
+[
+  {
+    "id": "u-ahmed",
+    "name": "Ahmed Nasri",
+    "initials": "AN",
+    "role": "directeur",
+    "email": "ahmed@salammarket.fr"
+  },
+  {
+    "id": "u-otmane",
+    "name": "Otmane Belkacem",
+    "initials": "OB",
+    "role": "manager",
+    "email": "otmane@salammarket.fr"
+  },
+  {
+    "id": "u-mehdi",
+    "name": "Mehdi Tazi",
+    "initials": "MT",
+    "role": "employe",
+    "email": "mehdi@salammarket.fr"
+  }
+]

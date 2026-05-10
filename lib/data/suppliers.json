@@ -1,0 +1,13 @@
+[
+  { "id": "s-maamora", "name": "Maamora", "contact": "Karim Lahlou", "email": "commandes@maamora.fr", "phone": "+33 5 61 22 18 04" },
+  { "id": "s-sipa", "name": "SIPA — Le Phare du Cap Bon", "contact": "Inès Khelifi", "email": "fr@sipa-tn.com", "phone": "+33 4 91 88 32 17" },
+  { "id": "s-ferrero", "name": "Ferrero France", "contact": "Service grossistes", "email": "pro@ferrero.fr", "phone": "+33 1 47 59 42 00" },
+  { "id": "s-cevital", "name": "Cevital France", "contact": "Yacine Brahim", "email": "ventes@cevital.fr", "phone": "+33 4 78 56 11 02" },
+  { "id": "s-bonduelle", "name": "Bonduelle", "contact": "Service pro", "email": "grossistes@bonduelle.com", "phone": "+33 3 20 43 60 60" },
+  { "id": "s-deglet", "name": "Deglet — Tunisie Dattes", "contact": "Sami Triki", "email": "export@deglet.tn", "phone": "+216 71 234 567" },
+  { "id": "s-carthago", "name": "Carthago Huiles", "contact": "Mourad Ben Salah", "email": "export@carthago.tn", "phone": "+216 71 887 320" },
+  { "id": "s-lactel", "name": "Lactel — Lactalis", "contact": "Service grossistes", "email": "pro@lactalis.fr", "phone": "+33 2 43 59 42 00" },
+  { "id": "s-salakis", "name": "Salakis", "contact": "Sophie Renard", "email": "pro@salakis.fr", "phone": "+33 2 43 59 41 12" },
+  { "id": "s-doux", "name": "Doux Halal", "contact": "Pierre Marteau", "email": "halal@doux.fr", "phone": "+33 2 98 91 60 00" },
+  { "id": "s-boucherie", "name": "Boucherie Salam (interne)", "contact": "Hassan Toulouse", "email": "boucherie@salammarket.fr", "phone": "+33 5 61 22 31 88" }
+]

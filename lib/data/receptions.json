@@ -1,0 +1,62 @@
+[
+  {
+    "id": "r-001",
+    "order_id": "po-003",
+    "user_id": "u-mehdi",
+    "date": "2026-05-04T09:30:00Z",
+    "ecart_global_pct": 3.3,
+    "photo_carton_count": 3,
+    "conformite_pct": 96.7,
+    "justification": "Manque 2 unités de Harissa, palette livreur incomplète.",
+    "lignes": [
+      { "product_id": "p-002", "quantite_commandee": 60, "quantite_recue": 58, "ecart_pct": -3.3, "photos": [], "scanned": true },
+      { "product_id": "p-015", "quantite_commandee": 48, "quantite_recue": 48, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-031", "quantite_commandee": 24, "quantite_recue": 24, "ecart_pct": 0, "photos": [], "scanned": true }
+    ]
+  },
+  {
+    "id": "r-002",
+    "order_id": "po-004",
+    "user_id": "u-otmane",
+    "date": "2026-05-03T10:45:00Z",
+    "ecart_global_pct": 4.1,
+    "photo_carton_count": 4,
+    "conformite_pct": 95.9,
+    "justification": "6 bouteilles Coca manquantes — fournisseur prévenu, avoir en cours.",
+    "lignes": [
+      { "product_id": "p-024", "quantite_commandee": 60, "quantite_recue": 60, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-025", "quantite_commandee": 60, "quantite_recue": 54, "ecart_pct": -10, "photos": [], "scanned": true },
+      { "product_id": "p-026", "quantite_commandee": 36, "quantite_recue": 36, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-027", "quantite_commandee": 36, "quantite_recue": 36, "ecart_pct": 0, "photos": [], "scanned": true }
+    ]
+  },
+  {
+    "id": "r-003",
+    "order_id": "po-005",
+    "user_id": "u-mehdi",
+    "date": "2026-05-07T07:20:00Z",
+    "ecart_global_pct": 0,
+    "photo_carton_count": 3,
+    "conformite_pct": 100,
+    "lignes": [
+      { "product_id": "p-010", "quantite_commandee": 48, "quantite_recue": 48, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-021", "quantite_commandee": 96, "quantite_recue": 96, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-034", "quantite_commandee": 18, "quantite_recue": 18, "ecart_pct": 0, "photos": [], "scanned": true }
+    ]
+  },
+  {
+    "id": "r-004",
+    "order_id": "po-006",
+    "user_id": "u-otmane",
+    "date": "2026-05-02T09:15:00Z",
+    "ecart_global_pct": 0,
+    "photo_carton_count": 4,
+    "conformite_pct": 100,
+    "lignes": [
+      { "product_id": "p-018", "quantite_commandee": 48, "quantite_recue": 48, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-019", "quantite_commandee": 48, "quantite_recue": 48, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-020", "quantite_commandee": 18, "quantite_recue": 18, "ecart_pct": 0, "photos": [], "scanned": true },
+      { "product_id": "p-023", "quantite_commandee": 60, "quantite_recue": 60, "ecart_pct": 0, "photos": [], "scanned": true }
+    ]
+  }
+]
