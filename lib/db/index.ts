@@ -1022,6 +1022,74 @@ export async function listRevenueByDay(opts?: {
   }));
 }
 
+/**
+ * CA drive total par jour sur les N derniers jours (commandes_drive
+ * sum total_ttc par date). Exclut les commandes annulées.
+ * Génère une courbe synthétique en mode local pour que le chart soit
+ * lisible sans données réelles.
+ */
+export async function listDriveRevenueByDay(opts?: {
+  days?: number;
+}): Promise<Array<{ date: string; ca: number; commandes: number }>> {
+  const days = opts?.days ?? 90;
+  const today = new Date();
+  const start = new Date(today.getTime() - (days - 1) * 86400_000);
+  start.setHours(0, 0, 0, 0);
+  const startIso = start.toISOString();
+
+  const sb = supabase();
+  const buckets = new Map<string, { ca: number; commandes: number }>();
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * 86400_000);
+    buckets.set(d.toISOString().slice(0, 10), { ca: 0, commandes: 0 });
+  }
+
+  if (sb) {
+    const { data: cmds, error } = await sb
+      .from("commandes_drive")
+      .select("created_at, statut, total_ttc")
+      .gte("created_at", startIso)
+      .neq("statut", "annule");
+    if (error) throw new Error(error.message);
+
+    for (const c of (cmds ?? []) as Array<{
+      created_at: string;
+      total_ttc: number | string;
+    }>) {
+      const key = c.created_at.slice(0, 10);
+      const b = buckets.get(key);
+      if (!b) continue;
+      b.ca += Number(c.total_ttc);
+      b.commandes += 1;
+    }
+  } else {
+    // Synthétique : random walk + boost weekend
+    let seed = 4231;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return (seed % 10_000) / 10_000;
+    };
+    let prev = 240;
+    Array.from(buckets.entries()).forEach(([key, b], idx) => {
+      const dayOfWeek = new Date(key + "T00:00:00").getDay();
+      const weekendBoost = dayOfWeek === 6 || dayOfWeek === 0 ? 1.35 : 1;
+      prev = Math.max(
+        60,
+        prev + (rand() - 0.42) * 110 + Math.sin(idx / 2.5) * 40
+      );
+      b.ca = Math.round(prev * weekendBoost);
+      b.commandes = Math.max(1, Math.round(prev / 25 * weekendBoost));
+    });
+  }
+
+  return Array.from(buckets.entries()).map(([date, b]) => ({
+    date,
+    ca: b.ca,
+    commandes: b.commandes,
+  }));
+}
+
 export async function updateLignePreparation(
   ligneId: string,
   patch: Partial<
