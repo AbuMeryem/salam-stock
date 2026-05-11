@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 export type PushStatus =
   | "idle"
@@ -101,21 +100,23 @@ export function usePushSubscription(employeId: string | null) {
         throw new Error("Subscription invalide (clés absentes).");
       }
 
-      const sb = supabase();
-      if (sb) {
-        const { error: dbErr } = await sb.from("push_subscriptions").upsert(
-          {
-            employe_id: employeId,
-            endpoint: json.endpoint,
-            keys_p256dh: json.keys.p256dh,
-            keys_auth: json.keys.auth,
-            user_agent: navigator.userAgent,
-            enabled: true,
-            last_used_at: new Date().toISOString(),
-          },
-          { onConflict: "endpoint" }
-        );
-        if (dbErr) throw new Error(dbErr.message);
+      // Délégation API server-side : la table push_subscriptions a une
+      // RLS stricte côté prod. L'upsert anon échoue (42501). On passe par
+      // un endpoint qui utilise SUPABASE_SERVICE_ROLE_KEY.
+      const saveRes = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employe_id: employeId,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+          user_agent: navigator.userAgent,
+        }),
+      });
+      if (!saveRes.ok) {
+        const txt = await saveRes.text().catch(() => "");
+        throw new Error(`Save subscription failed (${saveRes.status}): ${txt}`);
       }
       setStatus("subscribed");
     } catch (e) {
@@ -132,13 +133,12 @@ export function usePushSubscription(employeId: string | null) {
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
         await sub.unsubscribe();
-        const sb = supabase();
-        if (sb) {
-          await sb
-            .from("push_subscriptions")
-            .update({ enabled: false })
-            .eq("employe_id", employeId);
-        }
+        // Server-side disable (RLS stricte)
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employe_id: employeId }),
+        }).catch(() => {});
       }
       setStatus(Notification.permission === "granted" ? "granted" : "idle");
     } catch (e) {
