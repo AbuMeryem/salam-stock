@@ -73,6 +73,9 @@ export function RevenueChart({
 }: RevenueChartProps) {
   const [series, setSeries] = useState<Series>(initialSeries);
   const [period, setPeriod] = useState<Period>(initialPeriod);
+  /** Tooltip suit le doigt UNIQUEMENT pendant l'appui (touch) ou le hover (souris).
+   *  Sur touchend on remet à false → la carte recap disparaît dès qu'on relâche. */
+  const [tooltipVisible, setTooltipVisible] = useState(false);
 
   const sliced = useMemo(() => {
     const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
@@ -202,7 +205,13 @@ export function RevenueChart({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
-        className="h-[180px] -mx-2 mt-2"
+        className="h-[180px] -mx-2 mt-2 select-none touch-none"
+        onTouchStart={() => setTooltipVisible(true)}
+        onTouchMove={() => setTooltipVisible(true)}
+        onTouchEnd={() => setTooltipVisible(false)}
+        onTouchCancel={() => setTooltipVisible(false)}
+        onMouseLeave={() => setTooltipVisible(false)}
+        onMouseEnter={() => setTooltipVisible(true)}
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
@@ -242,16 +251,47 @@ export function RevenueChart({
               domain={["dataMin - 50", "dataMax + 50"]}
             />
             <Tooltip
-              cursor={{ stroke: "var(--border-medium)", strokeWidth: 1, strokeDasharray: "3 3" }}
+              active={tooltipVisible ? undefined : false}
+              /* Clamp horizontal ET vertical : la card recap ne peut plus
+                 sortir du chart. C'était le bug "tooltip dans le top-left
+                 de l'écran" quand on tape près du bord gauche. */
+              allowEscapeViewBox={{ x: false, y: false }}
+              offset={14}
+              cursor={{
+                stroke: "var(--border-medium)",
+                strokeWidth: 1,
+                strokeDasharray: "3 3",
+              }}
+              wrapperStyle={{
+                outline: "none",
+                pointerEvents: "none",
+                zIndex: 50,
+                transition: "opacity 120ms ease-out",
+              }}
               contentStyle={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border-light)",
                 borderRadius: 12,
-                boxShadow: "0 8px 24px rgba(14,59,46,0.12)",
+                boxShadow: "0 12px 32px rgba(14,59,46,0.18)",
                 padding: "10px 12px",
                 fontSize: 12,
+                maxWidth: 200,
               }}
-              labelFormatter={(v) => (typeof v === "string" ? formatDay(v) : String(v))}
+              labelStyle={{
+                color: "var(--text-secondary)",
+                fontSize: 11,
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+              itemStyle={{
+                color: "var(--text-primary)",
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "2px 0",
+              }}
+              labelFormatter={(v) =>
+                typeof v === "string" ? formatDay(v) : String(v)
+              }
               formatter={(value, name) => [
                 formatEUR(Number(value)),
                 name === "particulier" ? "Particulier" : "Pro",
@@ -262,12 +302,32 @@ export function RevenueChart({
                 type="monotone"
                 dataKey="particulier"
                 stroke={COLOR.particulierStroke}
-                strokeWidth={2.2}
+                strokeWidth={2.4}
                 fill="url(#grad-particulier)"
                 isAnimationActive
                 animationDuration={420}
+                /* Dot visible uniquement sur les jours avec activité — évite
+                   les ronds inutiles sur 30j de zéros, mais rend visibles
+                   les rares pics quand il n'y a que quelques commandes. */
+                dot={(props: { cx?: number; cy?: number; payload?: RevenueDataPoint }) => {
+                  const v = props.payload?.particulier ?? 0;
+                  if (v <= 0 || props.cx === undefined || props.cy === undefined) {
+                    return <g key={`dot-p-${props.cx ?? 0}-${props.cy ?? 0}`} />;
+                  }
+                  return (
+                    <circle
+                      key={`dot-p-${props.cx}-${props.cy}`}
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={3.5}
+                      fill={COLOR.particulier}
+                      stroke={COLOR.particulierStroke}
+                      strokeWidth={1.5}
+                    />
+                  );
+                }}
                 activeDot={{
-                  r: 4,
+                  r: 5,
                   fill: COLOR.particulier,
                   stroke: COLOR.particulierStroke,
                   strokeWidth: 2,
@@ -279,12 +339,29 @@ export function RevenueChart({
                 type="monotone"
                 dataKey="pro"
                 stroke={COLOR.proStroke}
-                strokeWidth={2.2}
+                strokeWidth={2.4}
                 fill="url(#grad-pro)"
                 isAnimationActive
                 animationDuration={420}
+                dot={(props: { cx?: number; cy?: number; payload?: RevenueDataPoint }) => {
+                  const v = props.payload?.pro ?? 0;
+                  if (v <= 0 || props.cx === undefined || props.cy === undefined) {
+                    return <g key={`dot-pr-${props.cx ?? 0}-${props.cy ?? 0}`} />;
+                  }
+                  return (
+                    <circle
+                      key={`dot-pr-${props.cx}-${props.cy}`}
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={3.5}
+                      fill={COLOR.pro}
+                      stroke={COLOR.proStroke}
+                      strokeWidth={1.5}
+                    />
+                  );
+                }}
                 activeDot={{
-                  r: 4,
+                  r: 5,
                   fill: COLOR.pro,
                   stroke: COLOR.proStroke,
                   strokeWidth: 2,
