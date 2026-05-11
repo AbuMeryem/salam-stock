@@ -1,5 +1,8 @@
-"use client";
-
+/* NB: pas de "use client" — ce module est utilisé à la fois côté
+   client (pages React, hooks Realtime) ET côté server (API routes,
+   crons, computeDailyZ, etc.). Avec "use client" Next.js empêche
+   l'appel depuis un Route Handler → erreur "n is not a function" au
+   runtime. La factory `supabase()` marche sur les deux runtimes. */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | null = null;
