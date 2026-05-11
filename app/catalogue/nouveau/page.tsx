@@ -85,7 +85,7 @@ export default function NouveauProduitPage() {
       stock_theoretical: String(sample.stock_theoretical),
       stock_min: String(sample.stock_min),
       unit: sample.unit,
-      image_url: sample.image_url,
+      image_url: sample.image_url ?? "",
     });
     setAiLoading(false);
     toast.success("Fiche pré-remplie par l'assistant Salam.");

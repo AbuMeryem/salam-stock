@@ -25,6 +25,9 @@
   --border-light: #E8E4D8;
   --border-medium: #D1CCB8;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-height: 64px;
+  --cta-height: 80px;
+  --header-height: 56px;
 }
 
 * {
@@ -212,6 +215,20 @@ body {
   .scrollbar-none::-webkit-scrollbar { display: none; }
   .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
   .safe-top { padding-top: max(env(safe-area-inset-top), 16px); }
+  /* Bottom-padding helpers tied to nav-height + cta-height variables. */
+  .pb-cta-stack {
+    padding-bottom: calc(var(--nav-height) + var(--cta-height) + var(--safe-bottom) + 32px);
+  }
+  .pb-nav-stack {
+    padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 32px);
+  }
+  /* Float a CTA strip above the bottom nav (or above safe-area when no nav). */
+  .cta-above-nav {
+    bottom: calc(var(--nav-height) + var(--safe-bottom));
+  }
+  .cta-above-safe {
+    bottom: var(--safe-bottom);
+  }
 }
 
 /* shadcn dialog overlay tweak */
