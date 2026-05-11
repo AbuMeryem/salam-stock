@@ -4,7 +4,8 @@ import { supabaseServer } from "@/lib/supabase-server";
 export const runtime = "nodejs";
 
 interface SubscribeBody {
-  employe_id: string;
+  employe_id?: string | null;
+  user_id?: string | null;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -30,12 +31,15 @@ export async function POST(req: Request) {
   }
 
   const sb = supabaseServer();
+  // La table prod a été renommée via 0014 : utilise keys_p256dh /
+  // keys_auth (pas p256dh/auth). user_id reste nullable depuis 0015.
   const { error } = await sb.from("push_subscriptions").upsert(
     {
+      user_id: body.user_id ?? null,
       employe_id: body.employe_id ?? null,
       endpoint: body.endpoint,
-      p256dh: body.p256dh,
-      auth: body.auth,
+      keys_p256dh: body.p256dh,
+      keys_auth: body.auth,
       user_agent: body.user_agent ?? null,
       enabled: true,
       last_used_at: new Date().toISOString(),
