@@ -19,6 +19,7 @@ import { RevenueChart, type RevenueDataPoint } from "@/components/v2/RevenueChar
 import { DriveDashboardSection } from "@/components/v2/DriveDashboardSection";
 import { PushNotifCard } from "@/components/v2/PushNotifCard";
 import { EmailRecapCard } from "@/components/v2/EmailRecapCard";
+import { WhatsAppRecapCard } from "@/components/v2/WhatsAppRecapCard";
 import { useV2 } from "@/lib/v2-store";
 import {
   listDepots,
@@ -528,6 +529,11 @@ export default function V2AdminDashboardPage() {
           )}
         </>
       )}
+
+      {/* Recap WhatsApp 19h — mockup pour la démo */}
+      <section className="px-5 mt-6 mb-8">
+        <WhatsAppRecapCard />
+      </section>
     </V2Shell>
   );
 }
