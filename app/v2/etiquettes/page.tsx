@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { listProduitsInDepot } from "@/lib/db";
@@ -71,6 +72,7 @@ export default function V2EtiquettesPage() {
 
   return (
     <V2Shell>
+      <PageAccentStripe accent="sapin" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}

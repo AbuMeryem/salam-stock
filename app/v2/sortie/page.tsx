@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
@@ -183,6 +184,7 @@ export default function V2SortiePage() {
 
   return (
     <V2Shell hideNav>
+      <PageAccentStripe accent="bordeaux" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}

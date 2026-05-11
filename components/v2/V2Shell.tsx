@@ -214,15 +214,21 @@ export function V2Shell({
                       {active && (
                         <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-7 h-0.5 rounded-full bg-gold" />
                       )}
-                      <Icon
-                        className={`w-[22px] h-[22px] transition-colors ${
-                          active ? "text-primary" : "text-text-tertiary"
+                      <span
+                        className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+                          active ? "bg-[color:var(--accent-gold-soft)]" : ""
                         }`}
-                        strokeWidth={active ? 2.4 : 1.8}
-                      />
+                      >
+                        <Icon
+                          className={`w-[22px] h-[22px] transition-colors ${
+                            active ? "text-primary-dark" : "text-text-tertiary"
+                          }`}
+                          strokeWidth={active ? 2.4 : 1.8}
+                        />
+                      </span>
                       <span
                         className={`text-[10px] font-semibold leading-tight mt-0.5 transition-colors whitespace-nowrap ${
-                          active ? "text-primary" : "text-text-tertiary"
+                          active ? "text-primary-dark" : "text-text-tertiary"
                         }`}
                       >
                         {it.label}

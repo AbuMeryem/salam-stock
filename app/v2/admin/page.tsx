@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { useV2 } from "@/lib/v2-store";
 import {
   listDepots,
@@ -143,6 +144,7 @@ export default function V2AdminDashboardPage() {
 
   return (
     <V2Shell>
+      <PageAccentStripe accent="or-sapin" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}

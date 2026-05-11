@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import {
   ProductRecognitionModal,
@@ -357,6 +358,7 @@ export default function V2ReceptionPage() {
 
   return (
     <V2Shell hideNav>
+      <PageAccentStripe accent="sapin" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}

@@ -74,11 +74,16 @@ const ADMIN_ACTIONS = [
   },
 ] as const;
 
+/** C2-A — palette Salam strictement appliquée sur les cards principales. */
 const accentClass: Record<string, string> = {
-  primary: "bg-primary text-white",
-  gold: "bg-[color:var(--accent-gold-bright)] text-primary-dark",
-  danger: "bg-danger-soft text-danger",
-  neutral: "bg-cream text-primary",
+  // Nouvelle réception → sapin plein, icône blanche
+  primary: "bg-[#0E3B2E] text-white",
+  // Transfert inter-dépôt → or plein, icône blanche
+  gold: "bg-[#C9A227] text-white",
+  // Déclarer une sortie → rouge bordeaux plein, icône blanche
+  danger: "bg-[#A8231A] text-white",
+  // Voir le stock → sapin foncé, icône or
+  neutral: "bg-[#0A2A20] text-[#C9A227]",
 };
 
 function greeting() {
@@ -155,7 +160,10 @@ export default function V2HomePage() {
           <div className="grid grid-cols-2 gap-3">
             {ADMIN_ACTIONS.map((a, i) => {
               const Icon = a.icon;
-              const highlight = a.href === "/v2/admin";
+              const isAdmin = a.href === "/v2/admin";
+              const isEtiquettes = a.href === "/v2/etiquettes";
+              const isPrep = a.href === "/v2/preparation";
+              const isInventaire = a.href === "/v2/inventaire";
               return (
                 <motion.div
                   key={a.href}
@@ -170,30 +178,44 @@ export default function V2HomePage() {
                   <Link
                     href={a.href}
                     className={`relative rounded-[20px] shadow-card border p-4 card-tappable focus-visible:outline-2 focus-visible:outline-primary block h-full ${
-                      highlight
-                        ? "bg-primary border-primary text-white"
+                      isAdmin
+                        ? "border-transparent text-white"
                         : "bg-white border-rule"
                     }`}
+                    style={
+                      isAdmin
+                        ? {
+                            background:
+                              "linear-gradient(135deg, #0E3B2E 0%, #14523F 55%, #C9A227 130%)",
+                          }
+                        : undefined
+                    }
                   >
                     <span
                       className={`inline-flex w-10 h-10 rounded-xl items-center justify-center mb-3 ${
-                        highlight
-                          ? "bg-[color:var(--accent-gold-bright)] text-primary-dark"
-                          : "bg-cream text-primary"
+                        isAdmin
+                          ? "bg-white/15 text-white backdrop-blur-sm"
+                          : isEtiquettes
+                            ? "bg-[#E0B83A] text-[#0E3B2E]"
+                            : isPrep
+                              ? "bg-[#C9A227] text-[#0E3B2E]"
+                              : isInventaire
+                                ? "bg-[#C9A227] text-[#0E3B2E]"
+                                : "bg-cream text-primary"
                       }`}
                     >
                       <Icon className="w-4 h-4" strokeWidth={2.2} />
                     </span>
                     <p
                       className={`text-[14px] font-bold leading-tight ${
-                        highlight ? "text-white" : "text-text-primary"
+                        isAdmin ? "text-white" : "text-text-primary"
                       }`}
                     >
                       {a.title}
                     </p>
                     <p
                       className={`text-[11.5px] mt-1 leading-snug ${
-                        highlight ? "text-text-ondarkmuted" : "text-text-tertiary"
+                        isAdmin ? "text-white/85" : "text-text-tertiary"
                       }`}
                     >
                       {a.desc}
