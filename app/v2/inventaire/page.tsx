@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import {
@@ -72,24 +73,62 @@ export default function V2InventairePage() {
 
   async function validateAll() {
     if (!employe) return;
+
+    const mineAssigned = rows.filter(
+      (r) => r.statut === "assigne" && r.employe_assigne_id === employe.id
+    );
+    const fillable = mineAssigned.filter((r) => {
+      const raw = (counts[r.id] ?? "").trim();
+      if (raw === "") return false;
+      const c = Number(raw);
+      return Number.isFinite(c) && c >= 0;
+    });
+
+    if (mineAssigned.length === 0) {
+      toast.error("Aucun produit à valider sur cet inventaire.", {
+        id: "inv-nothing-to-do",
+      });
+      return;
+    }
+
+    if (fillable.length === 0) {
+      toast.error(
+        `Compte au moins un produit (sur ${mineAssigned.length}) avant de valider.`,
+        { id: "inv-empty" }
+      );
+      return;
+    }
+
+    const partial = fillable.length < mineAssigned.length;
+    if (partial) {
+      const ok =
+        typeof window !== "undefined" &&
+        window.confirm(
+          `Tu as compté ${fillable.length} produit${fillable.length > 1 ? "s" : ""} sur ${mineAssigned.length}. ` +
+            "Valider partiellement ?\n\nLes produits non comptés resteront à compter plus tard."
+        );
+      if (!ok) return;
+    }
+
     setSubmitting(true);
-    let validated = 0;
     let totalEcart = 0;
     let totalTheo = 0;
     try {
-      for (const r of rows) {
-        if (r.statut !== "assigne") continue;
-        const c = parseInt(counts[r.id] ?? "", 10);
-        if (Number.isNaN(c)) continue;
+      for (const r of fillable) {
+        const c = Number((counts[r.id] ?? "").trim());
         await completeInventaire(r.id, c);
-        validated++;
         const ecart = c - (r.quantite_attendue ?? 0);
         totalEcart += Math.abs(ecart);
         totalTheo += r.quantite_attendue ?? 0;
       }
-      const conf = totalTheo > 0 ? Math.max(0, 100 - (totalEcart / totalTheo) * 100) : 100;
+      const conf =
+        totalTheo > 0 ? Math.max(0, 100 - (totalEcart / totalTheo) * 100) : 100;
+      const progress = `${fillable.length}/${mineAssigned.length}`;
       if (conf < 95) {
-        toast.warning(`Inventaire validé. Conformité ${conf.toFixed(1)}% — Otmane notifié.`);
+        toast.warning(
+          `Inventaire ${progress} validé · conformité ${conf.toFixed(1)}% · Otmane notifié.`,
+          { id: "inv-done" }
+        );
         await fetch("/api/notify", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -100,24 +139,29 @@ export default function V2InventairePage() {
               employe: `${employe.prenom} ${employe.nom}`,
               conformite: conf,
               ecarts: totalEcart,
+              comptes: fillable.length,
+              assignes: mineAssigned.length,
             },
           }),
-        });
+        }).catch(() => {});
       } else {
-        toast.success(`Inventaire validé. Conformité ${conf.toFixed(1)}%.`);
+        toast.success(
+          `Inventaire ${progress} validé · conformité ${conf.toFixed(1)}%.`,
+          { id: "inv-done" }
+        );
       }
       await load();
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de la validation");
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la validation");
     } finally {
       setSubmitting(false);
-      void validated;
     }
   }
 
   return (
     <V2Shell hideNav>
+      <PageAccentStripe accent="or" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}
@@ -233,23 +277,52 @@ export default function V2InventairePage() {
 
       <div className="fixed bottom-0 inset-x-0 z-30 pb-safe pointer-events-none">
         <div className="mx-auto max-w-[460px] px-4 pt-3 pb-3 pointer-events-auto">
-          <button
-            onClick={validateAll}
-            disabled={submitting || rows.every((r) => r.statut !== "assigne")}
-            className="w-full bg-primary text-white rounded-[22px] px-5 py-4 flex items-center justify-between shadow-card-lg disabled:opacity-50"
-          >
-            <div className="text-left">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
-                {submitting ? "Validation…" : "Valider l'inventaire"}
-              </p>
-              <p className="text-[15px] font-extrabold mt-0.5">
-                {Object.values(counts).filter((v) => v !== "").length}/{rows.length} comptés
-              </p>
-            </div>
-            <span className="bg-white/15 backdrop-blur-sm rounded-full p-2.5">
-              {submitting ? <Sprout className="w-5 h-5" /> : <Check className="w-5 h-5" />}
-            </span>
-          </button>
+          {(() => {
+            const mineAssigned = rows.filter(
+              (r) =>
+                r.statut === "assigne" && r.employe_assigne_id === employe?.id
+            );
+            const filledCount = mineAssigned.filter((r) => {
+              const raw = (counts[r.id] ?? "").trim();
+              if (raw === "") return false;
+              const c = Number(raw);
+              return Number.isFinite(c) && c >= 0;
+            }).length;
+            const nothingAssigned = mineAssigned.length === 0;
+            const noneFilled = !nothingAssigned && filledCount === 0;
+            return (
+              <button
+                onClick={validateAll}
+                disabled={submitting || nothingAssigned}
+                className={`w-full rounded-[22px] px-5 py-4 flex items-center justify-between shadow-card-lg disabled:opacity-50 transition-colors ${
+                  noneFilled
+                    ? "bg-warning text-white"
+                    : "bg-primary text-white"
+                }`}
+              >
+                <div className="text-left">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
+                    {submitting
+                      ? "Validation…"
+                      : noneFilled
+                        ? "Compte au moins 1 produit"
+                        : "Valider l'inventaire"}
+                  </p>
+                  <p className="text-[15px] font-extrabold mt-0.5">
+                    {filledCount}/{mineAssigned.length} compté
+                    {mineAssigned.length > 1 ? "s" : ""}
+                  </p>
+                </div>
+                <span className="bg-white/15 backdrop-blur-sm rounded-full p-2.5">
+                  {submitting ? (
+                    <Sprout className="w-5 h-5" />
+                  ) : (
+                    <Check className="w-5 h-5" />
+                  )}
+                </span>
+              </button>
+            );
+          })()}
         </div>
       </div>
     </V2Shell>

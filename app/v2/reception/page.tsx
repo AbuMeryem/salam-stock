@@ -13,16 +13,23 @@ import {
   ScanBarcode,
   Search,
   Send,
+  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
+import {
+  ProductRecognitionModal,
+  type RecognitionResult,
+} from "@/components/v2/ProductRecognitionModal";
 import { useV2 } from "@/lib/v2-store";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
 import { PhotoCapture } from "@/components/reception/PhotoCapture";
 import {
   addReceptionLigne,
+  createProduit,
   createReception,
   findCarton,
   findProduitByEan,
@@ -69,6 +76,7 @@ export default function V2ReceptionPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Produit[]>([]);
   const [pendingProduitForCarton, setPendingProduitForCarton] = useState<Produit | null>(null);
+  const [recognitionOpen, setRecognitionOpen] = useState(false);
 
   // Avoid stale-closure on the scanner callback
   const scansRef = useRef(scans);
@@ -291,6 +299,56 @@ export default function V2ReceptionPage() {
     setLearnMode("select");
     setPendingProduitForCarton(null);
     setCartonQty(0);
+    setRecognitionOpen(false);
+  }
+
+  async function handleRecognitionAccept(rec: RecognitionResult) {
+    if (!unknownEan) {
+      closeLearn();
+      return;
+    }
+    setRecognitionOpen(false);
+    try {
+      // 1. Create the product from IA-suggested data
+      const newProduit = await createProduit({
+        nom: rec.nom_suggere || "Produit non identifié",
+        marque: rec.marque_suggeree || null,
+        categorie: rec.categorie_suggeree || null,
+        sous_categorie: rec.sous_categorie_suggeree || null,
+        description: rec.description_courte || null,
+      });
+      // 2. Determine carton quantity (user-saisi or IA estimation)
+      const qty =
+        cartonQty > 0
+          ? cartonQty
+          : rec.quantite_carton_estimee > 0
+            ? rec.quantite_carton_estimee
+            : 1;
+      // 3. Enroll the carton EAN
+      await learnCarton({
+        ean_carton: unknownEan,
+        produit_id: newProduit.id,
+        quantite_par_carton: qty,
+        learned_by: employe?.id,
+        fournisseur: fournisseur || undefined,
+      });
+      // 4. Push a scan row
+      await pushScan({
+        code: unknownEan,
+        produit: newProduit,
+        quantite: qty,
+        source: "carton",
+        cartonInfo: { ean: unknownEan, multiplier: qty },
+      });
+      toast.success(
+        `Produit créé par IA : ${newProduit.nom} · carton × ${qty}`,
+        { duration: 2500 }
+      );
+      closeLearn();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Création échouée");
+    }
   }
 
   const totalUnits = useMemo(
@@ -300,6 +358,7 @@ export default function V2ReceptionPage() {
 
   return (
     <V2Shell hideNav>
+      <PageAccentStripe accent="sapin" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}
@@ -498,6 +557,13 @@ export default function V2ReceptionPage() {
         onCapture={(d) => setPhotoCarton(d)}
       />
 
+      <ProductRecognitionModal
+        open={recognitionOpen}
+        fallbackQuantite={cartonQty}
+        onClose={() => setRecognitionOpen(false)}
+        onAccept={(rec) => void handleRecognitionAccept(rec)}
+      />
+
       {/* UNKNOWN EAN — LEARNING WORKFLOW */}
       {unknownEan && (
         <div className="fixed inset-0 z-[70] fixed-overlay flex items-end justify-center">
@@ -581,8 +647,24 @@ export default function V2ReceptionPage() {
                   disabled={cartonQty <= 0}
                   className="btn-primary w-full mt-5 disabled:opacity-50"
                 >
-                  Suivant
+                  Suivant — choisir le produit
                 </button>
+                <div className="relative my-4 text-center">
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary font-bold bg-white px-2 relative z-10">
+                    ou
+                  </span>
+                  <span className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-rule z-0" />
+                </div>
+                <button
+                  onClick={() => setRecognitionOpen(true)}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-primary-dark to-primary text-white rounded-2xl py-4 font-bold shadow-card-lg active:scale-[0.99] transition-transform"
+                >
+                  <Sparkles className="w-5 h-5 text-gold" strokeWidth={2.4} />
+                  Reconnaître automatiquement (IA)
+                </button>
+                <p className="text-[11px] text-text-tertiary text-center mt-2">
+                  Claude vision identifie le produit à partir d&apos;une photo de l&apos;étiquette.
+                </p>
               </>
             )}
 

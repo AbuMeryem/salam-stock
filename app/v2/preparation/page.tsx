@@ -9,6 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { listCommandesDrive, listLignesPourCommande, listDepots } from "@/lib/db";
 import type {
   CommandeDrive,
@@ -58,6 +59,7 @@ export default function V2PreparationPage() {
 
   return (
     <V2Shell>
+      <PageAccentStripe accent="sapin-or" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}

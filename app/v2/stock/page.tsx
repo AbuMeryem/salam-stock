@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Package, Search } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { listProduitsInDepot } from "@/lib/db";
@@ -44,6 +45,7 @@ export default function V2StockPage() {
 
   return (
     <V2Shell>
+      <PageAccentStripe accent="fonce" />
       <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}

@@ -20,17 +20,22 @@ interface ProductThumbnailProps {
 }
 
 const CATEGORY_COLOR: Record<string, string> = {
-  Boucherie: "#A8231A",
-  Frais: "#4A90E2",
-  Charcuterie: "#4A90E2",
-  Épicerie: "#C9A227",
-  "Produits du Maghreb": "#0E3B2E",
+  // Palette Salam C2-E : couleurs vives, pas pastel.
+  Boucherie: "#A8231A",       // bordeaux
+  Frais: "#5BC85B",           // vert frais
+  Charcuterie: "#5BC85B",     // vert frais (catégorie froide claire)
+  Épicerie: "#C9A227",        // or
+  "Épicerie sèche": "#C9A227",
+  "Produits du Maghreb": "#0E3B2E", // sapin
+  Maghreb: "#0E3B2E",
   Conserves: "#0E3B2E",
-  Surgelés: "#5BC0DE",
+  Surgelés: "#4A90E2",        // bleu froid
+  Traiteur: "#0A2A20",        // sapin foncé pour la zone traiteur
   "Fruits & Légumes": "#6CAB44",
   "F&L": "#6CAB44",
   Boissons: "#525252",
   Hygiène: "#525252",
+  Autre: "#525252",
 };
 
 const FALLBACK = "#525252";
