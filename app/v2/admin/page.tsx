@@ -169,6 +169,31 @@ export default function V2AdminDashboardPage() {
             : "Activité drive client : commandes, créneaux, top produits."}
         </p>
 
+        {/* Raccourcis comptables */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <a
+            href="/v2/admin/recap-fiscal"
+            className="inline-flex items-center gap-2 bg-white border border-rule rounded-full px-3.5 py-1.5 text-[11.5px] font-bold text-text-primary shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-bright" />
+            Récap fiscal du jour
+          </a>
+          <a
+            href="/v2/admin/rapport-mensuel"
+            className="inline-flex items-center gap-2 bg-white border border-rule rounded-full px-3.5 py-1.5 text-[11.5px] font-bold text-text-primary shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            Rapport mensuel
+          </a>
+          <a
+            href="/v2/admin/import-cashmag"
+            className="inline-flex items-center gap-2 bg-white border border-rule rounded-full px-3.5 py-1.5 text-[11.5px] font-bold text-text-primary shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+            Import Cashmag
+          </a>
+        </div>
+
         {/* TOGGLE Stock / Drive */}
         <div
           role="tablist"
