@@ -66,13 +66,21 @@ export default function RootLayout({
         {children}
         <Toaster
           position="top-center"
-          offset="calc(env(safe-area-inset-top, 0px) + 16px)"
+          /* 80px clears the Dynamic Island (~59pt) on iPhone 14/15/16 Pro
+             with a 21pt breathing margin. sonner doesn't reliably parse
+             CSS calc() strings, so we hard-code a pixel-safe value. */
+          offset={80}
+          mobileOffset={80}
+          duration={2400}
+          gap={6}
+          visibleToasts={2}
           toastOptions={{
             style: {
               borderRadius: "16px",
               border: "1px solid var(--border-light)",
               padding: "14px 16px",
               fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+              boxShadow: "0 8px 24px rgba(14,59,46,0.12)",
             },
           }}
         />

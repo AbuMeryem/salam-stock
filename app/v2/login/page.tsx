@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Delete, KeyRound } from "lucide-react";
@@ -19,6 +19,9 @@ export default function V2LoginPage() {
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [employes, setEmployesList] = useState<Employe[]>([]);
+  /** Once a PIN has been accepted we never want loginByPin to run a 2nd
+   *  time, even if the auto-submit useEffect re-renders. */
+  const submittedRef = useRef<string | null>(null);
 
   useEffect(() => {
     void listEmployes().then(setEmployesList);
@@ -37,14 +40,16 @@ export default function V2LoginPage() {
   }
 
   useEffect(() => {
-    if (pin.length === 4 && !loading) {
+    if (pin.length === 4 && !loading && submittedRef.current !== pin) {
+      submittedRef.current = pin;
       setLoading(true);
       void (async () => {
         try {
           const e = await loginByPin(pin);
           if (!e) {
-            toast.error("Code PIN incorrect");
+            toast.error("Code PIN incorrect", { id: "pin-error" });
             setPin("");
+            submittedRef.current = null;
           } else {
             setEmploye(e);
             // Auto-select employee's primary depot
@@ -54,7 +59,12 @@ export default function V2LoginPage() {
               const d = depots.find((x) => x.id === e.depot_principal_id);
               if (d) setDepot(d);
             }
-            toast.success(`Bonjour ${e.prenom ?? e.nom}`);
+            // Stable id deduplicates if the effect re-fires (React 18
+            // concurrent rendering can run the auto-submit useEffect more
+            // than once on rapid PIN entry).
+            toast.success(`Bonjour ${e.prenom ?? e.nom}`, {
+              id: `welcome-${e.id}`,
+            });
             router.replace("/v2");
           }
         } catch (err) {
