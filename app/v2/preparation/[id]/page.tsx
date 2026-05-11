@@ -4,11 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Building2,
-  Camera,
   Check,
-  Clock,
+  MapPin,
   PackageMinus,
+  RotateCcw,
   ScanBarcode,
   ShoppingBag,
   Snowflake,
@@ -178,6 +177,52 @@ export default function V2PreparationDetailPage() {
     void photoUrl;
   }
 
+  /** Progression manuelle : l'employé valide à la main quand le scan échoue
+   *  (étiquette abîmée, produit en vrac, BL papier). Trace l'auteur tout pareil. */
+  async function markPreparedManual(ligneId: string, produitNom: string) {
+    if (!employe) return;
+    await updateLignePreparation(ligneId, {
+      statut_preparation: "prepare",
+      prepare_par_employe_id: employe.id,
+      prepare_at: new Date().toISOString(),
+    });
+    setLignes((prev) =>
+      prev.map((l) =>
+        l.id === ligneId
+          ? {
+              ...l,
+              statut_preparation: "prepare",
+              prepare_par_employe_id: employe.id,
+              prepare_at: new Date().toISOString(),
+            }
+          : l
+      )
+    );
+    toast.success(`${produitNom} préparé (manuel)`);
+  }
+
+  /** Retour arrière : remet la ligne en file "à chercher" (en cas d'erreur). */
+  async function resetLigne(ligneId: string) {
+    await updateLignePreparation(ligneId, {
+      statut_preparation: "en_attente",
+      prepare_par_employe_id: null,
+      prepare_at: null,
+    });
+    setLignes((prev) =>
+      prev.map((l) =>
+        l.id === ligneId
+          ? {
+              ...l,
+              statut_preparation: "en_attente",
+              prepare_par_employe_id: null,
+              prepare_at: null,
+            }
+          : l
+      )
+    );
+    toast("Renvoyé dans la file à chercher.", { icon: "↶" });
+  }
+
   async function finalize() {
     if (!commande) return;
     const remaining = lignes.filter((l) => l.statut_preparation === "en_attente");
@@ -252,56 +297,110 @@ export default function V2PreparationDetailPage() {
               {group.items.length > 1 ? "s" : ""}
             </p>
             <div className="space-y-2">
-              {group.items.map((l, i) => {
+              {/* En-attente d'abord, puis prepare/manquant — illusion de
+                  progression : les items "validés" descendent visuellement
+                  vers le bas du groupe à mesure que la prépa avance. */}
+              {sortByStatus(group.items).map((l, i) => {
                 const cold = COLD_CATEGORIES.has(l.produit?.categorie ?? "");
                 const done = l.statut_preparation !== "en_attente";
+                const depotName = depots.find((d) => d.id === l.depot_id)?.nom;
+                const aisle = l.produit?.sous_categorie;
                 return (
                   <motion.div
                     key={l.id}
+                    layout
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                    className={`bg-white border rounded-2xl p-3 flex items-center gap-3 ${
+                    transition={{ delay: i * 0.03, duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
+                    className={`bg-white border rounded-2xl p-3 ${
                       done ? "opacity-60 border-rule" : "border-rule"
                     }`}
                   >
-                    <ProductThumbnail
-                      nom={l.produit?.nom ?? "?"}
-                      categorie={l.produit?.categorie}
-                      size={48}
-                      rounded="xl"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-bold truncate ${done ? "line-through" : ""}`}>
-                        {l.produit?.nom ?? "Produit"}
-                      </p>
-                      <p className="text-[11px] text-text-tertiary inline-flex items-center gap-1">
-                        Qté {l.quantite}
-                        {cold && (
-                          <span className="inline-flex items-center gap-0.5 text-blue-600 ml-1">
-                            <Snowflake className="w-3 h-3" />
-                            Frais
+                    <div className="flex items-start gap-3">
+                      <ProductThumbnail
+                        nom={l.produit?.nom ?? "?"}
+                        categorie={l.produit?.categorie}
+                        size={48}
+                        rounded="xl"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold leading-snug ${done ? "line-through" : ""}`}>
+                          {l.produit?.nom ?? "Produit"}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                          <span className="text-[11px] text-text-secondary font-bold tabular">
+                            Qté {l.quantite}
                           </span>
-                        )}
-                      </p>
+                          {cold && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">
+                              <Snowflake className="w-3 h-3" />
+                              Frais
+                            </span>
+                          )}
+                        </div>
+                        {/* Localisation : dépôt + rayon (sous_categorie) —
+                            permet à l'employé de filer direct au rayon. */}
+                        <div className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide bg-[#FAEDC5] text-[#8B6F0E] rounded px-1.5 py-0.5">
+                          <MapPin className="w-3 h-3" />
+                          {depotName ?? "Dépôt ?"}
+                          {aisle && <span className="opacity-70">· {aisle}</span>}
+                        </div>
+                      </div>
                     </div>
-                    {l.statut_preparation === "prepare" && (
-                      <span className="text-success">
-                        <Check className="w-5 h-5" />
-                      </span>
-                    )}
-                    {l.statut_preparation === "manquant" && (
-                      <span className="badge badge-danger text-[10px]">Manquant</span>
-                    )}
-                    {l.statut_preparation === "en_attente" && (
-                      <button
-                        onClick={() => setMissingPhotoFor(l.id)}
-                        className="text-xs font-bold text-danger px-2 py-1.5 rounded-lg bg-danger-soft inline-flex items-center gap-1"
-                      >
-                        <PackageMinus className="w-3 h-3" />
-                        Manquant
-                      </button>
-                    )}
+
+                    {/* Actions adaptées au statut */}
+                    <div className="mt-2.5 flex items-center gap-1.5">
+                      {l.statut_preparation === "en_attente" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              markPreparedManual(l.id, l.produit?.nom ?? "Produit")
+                            }
+                            className="flex-1 text-xs font-bold text-success bg-success-soft rounded-lg py-2 inline-flex items-center justify-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            J&apos;ai trouvé
+                          </button>
+                          <button
+                            onClick={() => setMissingPhotoFor(l.id)}
+                            className="text-xs font-bold text-danger bg-danger-soft rounded-lg px-3 py-2 inline-flex items-center justify-center gap-1"
+                          >
+                            <PackageMinus className="w-3.5 h-3.5" />
+                            Manquant
+                          </button>
+                        </>
+                      )}
+                      {l.statut_preparation === "prepare" && (
+                        <>
+                          <span className="flex-1 text-xs font-bold text-success bg-success-soft rounded-lg py-2 inline-flex items-center justify-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            Préparé
+                          </span>
+                          <button
+                            onClick={() => resetLigne(l.id)}
+                            aria-label="Remettre à chercher"
+                            className="text-text-secondary rounded-lg px-2.5 py-2 bg-cream inline-flex items-center justify-center"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                      {l.statut_preparation === "manquant" && (
+                        <>
+                          <span className="flex-1 text-xs font-bold text-danger bg-danger-soft rounded-lg py-2 inline-flex items-center justify-center gap-1">
+                            <PackageMinus className="w-3.5 h-3.5" />
+                            Manquant
+                          </span>
+                          <button
+                            onClick={() => resetLigne(l.id)}
+                            aria-label="Remettre à chercher"
+                            className="text-text-secondary rounded-lg px-2.5 py-2 bg-cream inline-flex items-center justify-center"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </motion.div>
                 );
               })}
@@ -356,4 +455,15 @@ function formatHeure(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Stage progression : en_attente → prepare/manquant remontent visuellement.
+ *  L'employé voit toujours ce qui reste à chercher en haut, ce qui est fait
+ *  en bas — pas besoin d'écran kanban séparé. */
+function sortByStatus<T extends { statut_preparation: string }>(items: T[]): T[] {
+  const weight = (s: string) =>
+    s === "en_attente" ? 0 : s === "manquant" ? 1 : 2;
+  return [...items].sort(
+    (a, b) => weight(a.statut_preparation) - weight(b.statut_preparation)
+  );
 }

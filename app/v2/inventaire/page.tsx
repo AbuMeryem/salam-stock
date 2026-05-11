@@ -245,7 +245,7 @@ export default function V2InventairePage() {
                         onChange={(e) =>
                           setCounts((c) => ({ ...c, [r.id]: e.target.value }))
                         }
-                        className="w-20 mt-0.5 text-center bg-cream border border-rule rounded-xl py-1.5 text-lg font-bold"
+                        className="w-24 mt-0.5 text-center bg-cream border border-rule rounded-xl py-2.5 text-lg font-bold min-h-[44px]"
                       />
                     </div>
                   </div>

@@ -51,6 +51,18 @@ html, body {
   font-family: var(--font-jakarta), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* PWA terrain : pas de sélection accidentelle au long-press, pas de
+     callout iOS, pas de copy/paste involontaire pendant le scan. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Restaure la sélection là où c'est nécessaire (saisie utilisateur). */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Tabular numbers everywhere a quantity sits next to text. Stops "16"

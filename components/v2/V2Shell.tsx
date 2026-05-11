@@ -199,7 +199,24 @@ export function V2Shell({
             aria-label="Navigation principale"
           >
             <div className="mx-auto max-w-[460px] px-3 pb-2 pointer-events-auto">
-              <div className="bg-white/96 backdrop-blur-xl rounded-[24px] shadow-card-lg border border-rule px-2 py-2 flex items-center gap-1">
+              <div
+                className="rounded-[26px] px-1.5 py-1.5 flex items-center gap-0.5"
+                style={{
+                  /* Sapin glass : translucide assez pour laisser deviner le
+                     contenu qui scroll dessous, dense assez pour porter
+                     blanc/or à 15:1 de contraste. */
+                  background: "rgba(10, 36, 28, 0.82)",
+                  backdropFilter: "blur(28px) saturate(180%)",
+                  WebkitBackdropFilter: "blur(28px) saturate(180%)",
+                  border: "1px solid rgba(201, 162, 39, 0.18)",
+                  boxShadow: [
+                    "0 14px 36px rgba(6, 24, 18, 0.42)",
+                    "0 2px 6px rgba(6, 24, 18, 0.24)",
+                    "inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+                    "inset 0 -1px 0 rgba(0, 0, 0, 0.18)",
+                  ].join(", "),
+                }}
+              >
                 {primary.map((it) => {
                   const Icon = it.icon;
                   const active = it.exact
@@ -209,27 +226,31 @@ export function V2Shell({
                     <Link
                       key={it.href}
                       href={it.href}
-                      className="relative flex flex-col items-center justify-center px-1 py-1.5 flex-1 min-w-0"
+                      aria-current={active ? "page" : undefined}
+                      className={`relative flex flex-col items-center justify-center flex-1 min-w-0 py-2 rounded-2xl transition-colors duration-150`}
+                      style={
+                        active
+                          ? {
+                              background: "rgba(221, 179, 28, 0.18)",
+                              boxShadow: "inset 0 0 0 1px rgba(221, 179, 28, 0.30)",
+                            }
+                          : undefined
+                      }
                     >
-                      {active && (
-                        <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-7 h-0.5 rounded-full bg-gold" />
-                      )}
+                      <Icon
+                        className="w-6 h-6"
+                        strokeWidth={active ? 2.5 : 2.0}
+                        style={{
+                          color: active ? "#F4E9C4" : "rgba(255, 255, 255, 0.92)",
+                        }}
+                      />
                       <span
-                        className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-                          active ? "bg-[color:var(--accent-gold-soft)]" : ""
+                        className={`text-[11px] leading-tight mt-1 whitespace-nowrap ${
+                          active ? "font-extrabold" : "font-bold"
                         }`}
-                      >
-                        <Icon
-                          className={`w-[22px] h-[22px] transition-colors ${
-                            active ? "text-primary-dark" : "text-text-tertiary"
-                          }`}
-                          strokeWidth={active ? 2.4 : 1.8}
-                        />
-                      </span>
-                      <span
-                        className={`text-[10px] font-semibold leading-tight mt-0.5 transition-colors whitespace-nowrap ${
-                          active ? "text-primary-dark" : "text-text-tertiary"
-                        }`}
+                        style={{
+                          color: active ? "#F4E9C4" : "rgba(255, 255, 255, 0.92)",
+                        }}
                       >
                         {it.label}
                       </span>
@@ -241,13 +262,17 @@ export function V2Shell({
                   onClick={() => setSheetOpen(true)}
                   aria-label="Ouvrir le menu"
                   aria-expanded={sheetOpen}
-                  className="relative flex flex-col items-center justify-center px-1 py-1.5 flex-1 min-w-0"
+                  className="relative flex flex-col items-center justify-center flex-1 min-w-0 py-2 rounded-2xl"
                 >
                   <MoreHorizontal
-                    className="w-[22px] h-[22px] text-text-tertiary"
-                    strokeWidth={1.8}
+                    className="w-6 h-6"
+                    strokeWidth={2.0}
+                    style={{ color: "rgba(255, 255, 255, 0.92)" }}
                   />
-                  <span className="text-[10px] font-semibold leading-tight mt-0.5 text-text-tertiary whitespace-nowrap">
+                  <span
+                    className="text-[11px] font-bold leading-tight mt-1 whitespace-nowrap"
+                    style={{ color: "rgba(255, 255, 255, 0.92)" }}
+                  >
                     Plus
                   </span>
                 </button>
