@@ -369,7 +369,7 @@ export default function V2ReceptionPage() {
             </button>
           </section>
 
-          <section className="px-5 mt-5">
+          <section className="px-5 mt-5 pb-32">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-bold text-text-primary">
                 {scans.length} ligne{scans.length > 1 ? "s" : ""} scannée
