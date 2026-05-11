@@ -196,12 +196,14 @@ export async function learnCarton(input: {
     learned_by: input.learned_by ?? null,
   };
   if (sb) {
+    const { id: _localId, ...payload } = row;
+    void _localId;
     const { data, error } = await sb
       .from("codes_barres_cartons")
-      .insert(row)
+      .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data as CodeBarreCarton;
   }
   localCartons.push(row);
@@ -232,12 +234,14 @@ export async function createReception(input: {
     created_at: new Date().toISOString(),
   };
   if (sb) {
+    const { id: _localId, ...payload } = row;
+    void _localId;
     const { data, error } = await sb
       .from("receptions")
-      .insert(row)
+      .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data as Reception;
   }
   localReceptions.push(row);
@@ -260,12 +264,14 @@ export async function addReceptionLigne(input: {
     quantite_calculee: input.quantite_calculee,
   };
   if (sb) {
+    const { id: _localId, ...payload } = row;
+    void _localId;
     const { data, error } = await sb
       .from("receptions_lignes")
-      .insert(row)
+      .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data as ReceptionLigne;
   }
   localReceptionLignes.push(row);
@@ -407,12 +413,14 @@ export async function createSortie(input: {
     created_at: new Date().toISOString(),
   };
   if (sb) {
+    const { id: _localId, ...payload } = row;
+    void _localId;
     const { data, error } = await sb
       .from("sorties_stock")
-      .insert(row)
+      .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     // Decrement stock atomically — RPC would be safer; for the demo we read+update.
     const { data: stock } = await sb
       .from("stock_par_depot")
@@ -493,12 +501,14 @@ export async function createTransfert(input: {
     created_at: new Date().toISOString(),
   };
   if (sb) {
+    const { id: _localId, ...payload } = row;
+    void _localId;
     const { data, error } = await sb
       .from("transferts_inter_depots")
-      .insert(row)
+      .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     // Adjust both stock rows
     await adjustStock(input.produit_id, input.depot_source_id, -input.quantite);
     await adjustStock(input.produit_id, input.depot_destination_id, input.quantite);
@@ -651,12 +661,14 @@ export async function assignInventairesPourDepot(
     };
     const sb = supabase();
     if (sb) {
+      const { id: _localId, ...payload } = row;
+      void _localId;
       const { data, error } = await sb
         .from("inventaires_tournants")
-        .insert(row)
+        .insert(payload)
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       created.push(data as InventaireTournant);
     } else {
       localInventaires.push(row);
