@@ -160,6 +160,48 @@ export async function searchProduits(query: string): Promise<Produit[]> {
   ).slice(0, 20);
 }
 
+/* ────────────────── Création produit (depuis IA ou form) ────────────────── */
+
+export async function createProduit(input: {
+  ean?: string | null;
+  nom: string;
+  marque?: string | null;
+  categorie?: string | null;
+  sous_categorie?: string | null;
+  description?: string | null;
+  requires_barcode_print?: boolean;
+}): Promise<Produit> {
+  const sb = supabase();
+  const row = {
+    ean: input.ean ?? null,
+    nom: input.nom,
+    marque: input.marque ?? null,
+    categorie: input.categorie ?? null,
+    sous_categorie: input.sous_categorie ?? null,
+    image_url: null,
+    description: input.description ?? null,
+    requires_barcode_print: input.requires_barcode_print ?? false,
+    est_traiteur: false,
+  };
+  if (sb) {
+    const { data, error } = await sb
+      .from("produits")
+      .insert(row)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as Produit;
+  }
+  // local
+  const local: Produit = {
+    id: "prd-local-" + Date.now(),
+    ...row,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  return local;
+}
+
 /* ────────────────── Carton EANs ────────────────── */
 
 const localCartons: CodeBarreCarton[] = [];
