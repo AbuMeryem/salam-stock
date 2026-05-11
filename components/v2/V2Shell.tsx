@@ -194,26 +194,32 @@ export function V2Shell({
 
         {/* BOTTOM NAV — 4 primary + "Plus"
             Pill 100% opaque pour rester lisible sur n'importe quel
-            background de page (cream, gradient, image). WCAG AA :
-            labels en text-secondary (#6B7280) → 4.74:1 sur blanc. */}
+            background de page. WCAG AA : labels en text-secondary
+            (#6B7280) → 4.74:1 sur blanc. Shadow tight (8px blur), pas
+            le -lg qui crée une lueur halo sapin trop grasse sur cream. */}
         {!hideNav && (
           <nav
-            className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none"
+            className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none bg-cream"
             aria-label="Navigation principale"
           >
-            {/* Scroll-fade : 28px de cream→transparent au-dessus du pill,
-                pour fader le contenu de la page sans glassmorphism. */}
+            {/* Scroll-fade : 24px transparent→cream juste au-dessus,
+                pour fader le contenu de page qui passe derrière. */}
             <div
               aria-hidden
-              className="h-7 w-full"
+              className="h-6 w-full -mt-6 absolute inset-x-0 pointer-events-none"
               style={{
                 background:
-                  "linear-gradient(180deg, rgba(250,247,238,0) 0%, rgba(250,247,238,1) 100%)",
+                  "linear-gradient(180deg, rgba(250,247,238,0) 0%, rgba(250,247,238,0.92) 60%, rgba(250,247,238,1) 100%)",
               }}
             />
-            <div className="bg-cream">
-              <div className="mx-auto max-w-[460px] px-3 pb-2 pt-1 pointer-events-auto">
-                <div className="bg-white rounded-[24px] shadow-card-lg border border-rule px-2 py-2 flex items-center gap-1">
+            <div className="mx-auto max-w-[460px] px-3 pb-2 pt-2 pointer-events-auto">
+              <div
+                className="bg-white rounded-[24px] border border-rule px-2 py-2 flex items-center gap-1"
+                style={{
+                  boxShadow:
+                    "0 1px 0 rgba(14,59,46,0.04), 0 4px 12px rgba(14,59,46,0.06)",
+                }}
+              >
                   {primary.map((it) => {
                     const Icon = it.icon;
                     const active = it.exact
@@ -270,7 +276,6 @@ export function V2Shell({
                       Plus
                     </span>
                   </button>
-                </div>
               </div>
             </div>
           </nav>
