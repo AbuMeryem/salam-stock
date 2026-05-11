@@ -20,8 +20,59 @@
 | `1234` | Otmane Jamal | Manager | Particulier |
 | `5678` | Ilyes Mehdi | Préparation | Professionnel |
 | `9999` | Ahmed Nasri | Admin | Particulier |
+| `4321` | Reda Hamidou | Réception | **Sodrune** (entrepôt back-office) |
 
 Le code PIN logge l'employé, sélectionne automatiquement son dépôt principal, redirige vers `/v2`.
+
+---
+
+## FIXES POST-AUDIT REAL DEVICE (Mohamed, iPhone 12 Pro — 11 mai PM)
+
+Une seconde passe de corrections appliquée après que Mohamed a testé l'app sur un vrai iPhone 12 Pro. Sept bugs/améliorations majeurs résolus avant le RDV Otmane 12 mai 14h.
+
+### Bug 1 — Bottom nav surchargée (CRITICAL) → `c9bcf5f`
+8 items dans une nav bar 390px sur iPhone 12 Pro = labels écrasés, illisibles.
+- Refactor V2Shell : **4 items primaires + bouton "Plus"** par rôle.
+  - admin : Accueil · Stock · Invent. · Admin · Plus
+  - autres rôles : Accueil · Récep. · Sortie · Stock · Plus
+- "Plus" ouvre un **bottom-sheet drag-to-dismiss** avec backdrop blur, escape key et swipe-down → close.
+- Nouvelles CSS vars globales : `--nav-height`, `--cta-height`, `--header-height`, `--safe-bottom`. Plus de magic numbers.
+
+### Bug 2 — CTA flottant recouvrait le dernier item de liste (CRITICAL) → `56361be`
+Sur /v2/sortie, le bouton "Autre motif" était mangé par le CTA orange "DÉCLARER LA SORTIE".
+- Nouveau utility `.pb-cta-only` = `calc(var(--cta-height) + var(--safe-bottom) + 32px)` (~146px sur iPhone 12 Pro vs 128px de pb-32 qui était trop juste).
+- Appliqué à toutes les sections scrollables des pages `hideNav` : sortie types + qty/photo, transfert qty/photo, réception scans, inventaire rows, préparation/[id] lignes.
+
+### Bug 3 — Suppression "Vol identifié" → "Démarque inconnue" → `37647f6`
+Motif inadapté (un employé honnête ne va pas déclarer un vol). Remplacé par la terminologie comptable retail standard.
+- Migration `0002_remove_vol_identifie.sql` : drop check, update lignes existantes, ré-ajoute check avec `demarque_inconnue`.
+- Types + page /v2/sortie + mock IA (vision-coherence) + admin labels.
+
+### Bug 4 — Réception vide bloquée + alerte admin → `abf1a82`
+Mohamed avait validé une réception sans rien scanner et l'app l'a accepté en silence.
+- CTA réception bascule en orange "Valider sans scan · Aucun produit · confirmation requise" dès que `scans.length === 0`.
+- `window.confirm()` explicite avant validation vide → tag `reception_vide=true` en base + notif `/api/notify`.
+- Nouvelle section "Réceptions vides à vérifier" sur le dashboard /v2/admin (warning-soft).
+- Migration `0003_reception_vide.sql` : ajoute la colonne + index partiel.
+
+### Bug 5 — Padding-top header sticky sur toutes les pages V2 → `ac89268`
+Le titre H1 collait au header sticky. Bump uniforme `pt-5/pt-6 → pt-7` sur les 11 headers V2.
+
+### Mission A — Zones de préparation drive (Particulier / Pro / Traiteur) → `deb822e`
+Correction métier critique : le drive a 3 zones physiques, Sodrune n'en fait jamais partie.
+- Migration `0004_zones_drive.sql` : enum `zone_preparation_drive` + colonne sur `commandes_drive_lignes`.
+- Migration `0005_traiteur_flag.sql` : `produits.est_traiteur` + 5 plats traiteur seedés (Couscous royal, Tajine agneau pruneaux, Pastilla poulet, Méchoui agneau, Salade composée).
+- /v2/preparation/[id] : lignes groupées par zone avec emoji (🛒 Particulier, 🏢 Pro, 🍽️ Traiteur), surgelés/frais d'abord dans chaque zone.
+- /v2/preparation : badges des commandes affichent désormais les zones (au lieu des dépôts).
+- /v2/admin : carte Sodrune → sous-titre "Entrepôt back-office — pas de drive".
+- SEED_COMMANDE_LIGNES revues : aucune ligne Sodrune, commande Yasmine (cmd-001) inclut 2 lignes traiteur pour démo multi-zones.
+
+### Mission B — Employé Sodrune Reda PIN 4321 → `deb822e`
+Sodrune avait 0 employé → le cron inventaire ne pouvait rien assigner.
+- Migration `0006_employe_sodrune.sql` : insert Reda Hamidou (PIN 4321, role reception, depot Sodrune).
+- Ajout dans `SEED_EMPLOYES` du seed local.
+
+**Migrations 0002 → 0006 à appliquer en prod via le SQL Editor Supabase avant mardi 12 mai 14h.**
 
 ---
 
