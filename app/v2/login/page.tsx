@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { listEmployes, loginByPin } from "@/lib/db";
 import { useV2 } from "@/lib/v2-store";
 import type { Employe } from "@/lib/types/db";
+import { V2Logo } from "@/components/v2/V2Logo";
 
 export default function V2LoginPage() {
   const router = useRouter();
@@ -72,9 +73,9 @@ export default function V2LoginPage() {
       <div className="mx-auto w-full max-w-[460px] flex-1 flex flex-col">
         <header className="gradient-header rounded-b-[28px] pt-14 pb-10 px-6 text-text-ondark">
           <div className="flex items-center gap-3 mb-6">
-            <span className="text-2xl">🧪</span>
+            <V2Logo size={36} variant="dark" />
             <div>
-              <p className="label-caps text-text-ondark/70">Salam Stock V2</p>
+              <p className="label-caps text-gold">Salam Stock</p>
               <h1 className="text-xl font-bold leading-tight">
                 Multi-dépôts · Toulouse
               </h1>

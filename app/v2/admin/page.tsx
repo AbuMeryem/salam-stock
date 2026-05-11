@@ -84,7 +84,9 @@ export default function V2AdminDashboardPage() {
           ),
           receptionsToday: receptions.filter((r) => isToday(r.created_at)).length,
           sortiesToday: sorties.filter((r) => isToday(r.created_at)).length,
-          ecartsCount: inventaires.filter((i) => i.ecart !== 0).length,
+          ecartsCount: inventaires.filter(
+            (i) => i.quantite_comptee !== null && i.ecart !== 0
+          ).length,
         };
       })
     );
@@ -133,7 +135,7 @@ export default function V2AdminDashboardPage() {
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
         <p className="label-caps text-primary mt-3">Dashboard global</p>
-        <h1 className="h1 text-text-primary mt-1">Bonjour {employe?.prenom}.</h1>
+        <h1 className="h1 text-text-primary mt-1">Bonjour {employe?.prenom}</h1>
         <p className="body-md text-text-secondary mt-1">
           Vision unifiée des 3 dépôts en temps réel.
         </p>
@@ -223,8 +225,8 @@ export default function V2AdminDashboardPage() {
           {/* RECENT */}
           <section className="px-5 mt-7">
             <p className="label-caps text-primary mb-3">Activité 24h</p>
-            <div className="bg-white border border-rule rounded-2xl divide-y divide-rule overflow-hidden">
-              {[
+            {(() => {
+              const merged = [
                 ...recentReceptions.map((r) => ({
                   type: "rec" as const,
                   date: r.created_at,
@@ -240,27 +242,50 @@ export default function V2AdminDashboardPage() {
                   date: t.created_at,
                   item: t,
                 })),
-              ]
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .slice(0, 12)
-                .map((row, i) => (
-                  <ActivityRow
-                    key={i}
-                    row={row}
-                    depots={depots}
-                    employes={employes}
-                  />
-                ))}
-            </div>
+              ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
+              if (merged.length === 0) {
+                return (
+                  <div className="bg-white border border-rule rounded-2xl p-6 text-center">
+                    <Sparkles className="w-6 h-6 text-text-tertiary mx-auto mb-2" />
+                    <p className="text-sm font-bold text-text-primary">
+                      Aucun mouvement sur les dernières 24h
+                    </p>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Réceptions, sorties et transferts apparaîtront ici dès qu&apos;ils seront validés.
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <div className="bg-white border border-rule rounded-2xl divide-y divide-rule overflow-hidden">
+                  {merged.map((row, i) => (
+                    <ActivityRow
+                      key={i}
+                      row={row}
+                      depots={depots}
+                      employes={employes}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
           </section>
 
           {/* INVENTAIRES TOURNANTS */}
           {recentInventaires.length > 0 && (
             <section className="px-5 mt-7">
-              <p className="label-caps text-primary mb-3 inline-flex items-center gap-1">
-                <ClipboardCheck className="w-3 h-3" />
-                Inventaires du jour
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="label-caps text-primary inline-flex items-center gap-1">
+                  <ClipboardCheck className="w-3 h-3" />
+                  Inventaires du jour
+                </p>
+                <a
+                  href="/v2/inventaire/historique"
+                  className="text-[11px] font-bold text-primary inline-flex items-center gap-0.5"
+                >
+                  Historique →
+                </a>
+              </div>
               <div className="bg-white border border-rule rounded-2xl divide-y divide-rule">
                 {recentInventaires.map((inv) => {
                   const d = depots.find((x) => x.id === inv.depot_id);

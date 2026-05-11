@@ -1,7 +1,10 @@
 # SALAM STOCK V2 — SPRINT NUIT 10→11 MAI 2026
 
-> Branche `v2-multi-depots` · 2 commits sur l'app B2B v1 d'origine (`main`).
+> Branche `v2-multi-depots` · plusieurs commits sur l'app B2B v1 d'origine (`main`).
 > Démo prête. Tout livré sur la même URL Vercel sans casser la v1.
+>
+> **Statut data layer : `PRODUCTION SUPABASE ACTIVE`** (projet `tltmermqodelorthtbre`).
+> Le bandeau "MODE DÉMO LOCAL" disparaît de l'UI. Toutes les écritures persistent dans Supabase.
 
 ## URL DE PRODUCTION
 
@@ -91,14 +94,14 @@ Le code PIN logge l'employé, sélectionne automatiquement son dépôt principal
 
 ## CE QUI N'A PAS ÉTÉ FAIT (et pourquoi)
 
-### Application réelle des migrations Supabase
-- L'auto-mode classifier de Claude Code a refusé l'appel REST à `https://api.supabase.com/v1/projects/.../api-keys` (concern token exposure) → impossible d'extraire automatiquement les anon/service keys du projet `tltmermqodelorthtbre`
-- **Action requise** au réveil :
-  1. Aller dans Supabase Dashboard → Project Settings → API → copier `anon public` et `service_role`
-  2. Créer `.env.local` à la racine avec `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-  3. Coller `supabase/migrations/0001_init.sql` puis `supabase/seed/0001_seed.sql` dans le SQL Editor
-  4. `vercel env add` les 3 mêmes vars en prod, redeploy
-- **Conséquence actuelle** : l'app tourne en **mode démo local** (in-memory). Les écritures (réceptions, sorties, transferts, inventaires) sont visibles dans la session navigateur mais perdues au refresh. Pour une démo client le 26 mai, il faut basculer en Supabase d'ici là.
+### Application réelle des migrations Supabase ✅ FAIT
+- Mohamed a fourni les 3 clés (anon + service_role + URL) dans une session ultérieure.
+- `.env.local` créé localement avec les 3 vars (gitignored).
+- `npx supabase link --project-ref tltmermqodelorthtbre` OK.
+- Migration `0001_init.sql` (12 tables + RLS + triggers) appliquée via Supabase Management API SQL endpoint (HTTP 201).
+- Seed `0001_seed.sql` appliqué (3 dépôts, 3 employés, 35 produits, 90 entrées stock_par_depot).
+- Vérification REST : `GET /rest/v1/depots` renvoie bien les 3 dépôts seedés.
+- 3 vars Vercel production set : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### Push GitHub + ouverture PR
 - `gh` installé mais non authentifié (`gh auth status` = not logged in)

@@ -666,6 +666,29 @@ export async function assignInventairesPourDepot(
   return created;
 }
 
+export async function listInventairesHistorique(opts?: {
+  depotId?: string;
+  limit?: number;
+}): Promise<InventaireTournant[]> {
+  const limit = opts?.limit ?? 60;
+  const sb = supabase();
+  if (sb) {
+    let q = sb
+      .from("inventaires_tournants")
+      .select("*")
+      .order("date_assignation", { ascending: false })
+      .limit(limit);
+    if (opts?.depotId) q = q.eq("depot_id", opts.depotId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data as InventaireTournant[];
+  }
+  return localInventaires
+    .filter((i) => !opts?.depotId || i.depot_id === opts.depotId)
+    .sort((a, b) => b.date_assignation.localeCompare(a.date_assignation))
+    .slice(0, limit);
+}
+
 export async function completeInventaire(
   inventaireId: string,
   quantiteComptee: number

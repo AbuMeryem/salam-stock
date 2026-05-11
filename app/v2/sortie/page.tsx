@@ -179,7 +179,7 @@ export default function V2SortiePage() {
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
         <p className="label-caps text-danger mt-3">Déclarer une sortie</p>
-        <h1 className="h1 text-text-primary mt-1">Photo + motif obligatoires.</h1>
+        <h1 className="h1 text-text-primary mt-1">Sortie de stock</h1>
         <p className="body-md text-text-secondary mt-1">
           L&apos;IA Claude analyse la cohérence photo/déclaration pour Otmane.
         </p>
@@ -380,8 +380,9 @@ export default function V2SortiePage() {
                 {submitting ? "Validation…" : "Déclarer la sortie"}
               </p>
               <p className="text-[15px] font-extrabold mt-0.5">
-                {produit?.nom?.split(" ").slice(0, 4).join(" ") ?? "—"} ·{" "}
-                {quantite}
+                {produit
+                  ? `${produit.nom.split(" ").slice(0, 4).join(" ")} · ${quantite}`
+                  : "Choisir un produit"}
               </p>
             </div>
             <span className="bg-white/15 backdrop-blur-sm rounded-full p-2.5">

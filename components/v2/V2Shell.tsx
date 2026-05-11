@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   ClipboardList,
   Home,
+  LayoutDashboard,
   LogOut,
   PackageSearch,
   Repeat2,
@@ -17,6 +18,7 @@ import {
 import { useV2 } from "@/lib/v2-store";
 import { dataMode } from "@/lib/db";
 import { DepotSwitcher } from "./DepotSwitcher";
+import { V2Logo } from "./V2Logo";
 
 interface NavItem {
   label: string;
@@ -27,16 +29,16 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Accueil", href: "/v2", icon: Home, exact: true },
-  { label: "Réception", href: "/v2/reception", icon: ArrowDownToLine },
+  { label: "Récep.", href: "/v2/reception", icon: ArrowDownToLine },
   { label: "Sortie", href: "/v2/sortie", icon: ArrowUpRight },
-  { label: "Transfert", href: "/v2/transfert", icon: Repeat2 },
+  { label: "Transf.", href: "/v2/transfert", icon: Repeat2 },
   { label: "Stock", href: "/v2/stock", icon: PackageSearch },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { label: "Préparation", href: "/v2/preparation", icon: ShoppingBag },
-  { label: "Inventaire", href: "/v2/inventaire", icon: ClipboardList },
-  { label: "Dashboard", href: "/v2/admin", icon: Home },
+  { label: "Prépa.", href: "/v2/preparation", icon: ShoppingBag },
+  { label: "Invent.", href: "/v2/inventaire", icon: ClipboardList },
+  { label: "Admin", href: "/v2/admin", icon: LayoutDashboard },
 ];
 
 export function V2Shell({
@@ -83,8 +85,12 @@ export function V2Shell({
         {/* HEADER */}
         <header className="sticky top-0 z-30 bg-cream/95 backdrop-blur-md border-b border-rule">
           <div className="flex items-center justify-between gap-2 px-4 py-3 safe-top">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xl">🧪</span>
+            <Link
+              href="/v2"
+              className="flex items-center gap-2 min-w-0"
+              aria-label="Accueil Salam Stock"
+            >
+              <V2Logo size={28} />
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
                   Salam Stock
@@ -93,7 +99,7 @@ export function V2Shell({
                   {employe.prenom} {employe.nom} · {employe.role}
                 </p>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-2">
               <DepotSwitcher />
               <button
@@ -133,7 +139,7 @@ export function V2Shell({
         {!hideNav && (
           <nav className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none">
             <div className="mx-auto max-w-[460px] px-3 pb-2 pointer-events-auto">
-              <div className="bg-white/96 backdrop-blur-xl rounded-[24px] shadow-card-lg border border-rule px-2 py-2 flex items-center justify-between overflow-x-auto scrollbar-none">
+              <div className="bg-white/96 backdrop-blur-xl rounded-[24px] shadow-card-lg border border-rule px-1.5 py-2 flex items-center justify-between gap-0.5 overflow-x-auto scrollbar-none">
                 {items.map((it) => {
                   const Icon = it.icon;
                   const active = it.exact
@@ -143,7 +149,7 @@ export function V2Shell({
                     <Link
                       key={it.href}
                       href={it.href}
-                      className="relative flex flex-col items-center justify-center px-2 py-1.5 min-w-[58px]"
+                      className="relative flex flex-col items-center justify-center px-1.5 py-1.5 min-w-0 flex-1 max-w-[68px]"
                     >
                       {active && (
                         <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-gold" />
@@ -155,7 +161,7 @@ export function V2Shell({
                         strokeWidth={active ? 2.4 : 1.8}
                       />
                       <span
-                        className={`text-[10px] font-semibold tracking-wide mt-0.5 transition-colors ${
+                        className={`text-[9px] font-semibold leading-tight mt-0.5 transition-colors max-w-full whitespace-nowrap ${
                           active ? "text-primary" : "text-text-tertiary"
                         }`}
                       >

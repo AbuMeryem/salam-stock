@@ -42,16 +42,7 @@ export default function V2EtiquettesPage() {
     setGenerating(true);
     try {
       const { buildLabelsPdf } = await import("@/lib/labels/generate-pdf");
-      const blob = await buildLabelsPdf(
-        selected.map((p) => ({
-          produitNom: p.nom,
-          marque: p.marque,
-          ean: p.ean ?? "",
-        })),
-        // copies handled per item below — we pass 1 here and replicate items
-        1
-      );
-      // Build correct multi-copy by expanding items array
+      // Expand each selected product by its copy count for the PDF builder.
       const expanded = selected.flatMap((p) =>
         Array.from({ length: copies[p.id] }).map(() => ({
           produitNom: p.nom,
@@ -60,7 +51,6 @@ export default function V2EtiquettesPage() {
         }))
       );
       const finalBlob = await buildLabelsPdf(expanded, 1);
-      void blob; // silence
       const url = URL.createObjectURL(finalBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -88,7 +78,7 @@ export default function V2EtiquettesPage() {
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
         <p className="label-caps text-primary mt-3">Étiquettes barcode internes</p>
-        <h1 className="h1 text-text-primary mt-1">Imprimer les EAN-13.</h1>
+        <h1 className="h1 text-text-primary mt-1">Imprimer les EAN-13</h1>
         <p className="body-md text-text-secondary mt-1">
           Format Brother QL-820, 62×29 mm. Préfixe 290 pour les codes internes.
         </p>

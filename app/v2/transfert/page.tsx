@@ -144,7 +144,7 @@ export default function V2TransfertPage() {
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
         <p className="label-caps text-gold mt-3">Transfert inter-dépôt</p>
-        <h1 className="h1 text-text-primary mt-1">Bouger du stock.</h1>
+        <h1 className="h1 text-text-primary mt-1">Bouger du stock</h1>
       </header>
 
       {/* SOURCE / DESTINATION */}

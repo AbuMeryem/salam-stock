@@ -11,20 +11,41 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Salam Stock",
-  description: "Gestion de réception et stock — Salam Market Toulouse",
+  title: {
+    default: "Salam Stock — Gestion multi-dépôts",
+    template: "%s · Salam Stock",
+  },
+  description:
+    "Salam Market Toulouse — réception, sortie, transferts, inventaire et drive multi-dépôts. App PWA opérée sur le terrain.",
   manifest: "/manifest.json",
+  applicationName: "Salam Stock",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Salam Stock",
   },
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Salam Stock",
+    title: "Salam Stock — Gestion multi-dépôts",
+    description:
+      "Réception, sortie, transferts, inventaire, drive — multi-dépôts Toulouse.",
+    images: [{ url: "/icons/icon-512.png", width: 512, height: 512 }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Salam Stock",
+    description: "Gestion multi-dépôts Toulouse",
+  },
   icons: {
     icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: "/icons/apple-touch-icon.png",
+    shortcut: "/icons/icon-192.png",
   },
 };
 
