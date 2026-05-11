@@ -6,6 +6,14 @@
     {
       "path": "/api/cron/inventaire-tournant",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/daily-z",
+      "schedule": "59 23 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-report",
+      "schedule": "0 6 1 * *"
     }
   ]
 }
