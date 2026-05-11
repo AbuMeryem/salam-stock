@@ -11,6 +11,8 @@ import {
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
 import type { MonthlyReport } from "@/lib/cashbox/monthly-report";
+import { downloadOrShare } from "@/lib/download-helper";
+import { DownloadCompleteBar } from "@/components/v2/DownloadCompleteBar";
 
 const fr = (n: number) => new Intl.NumberFormat("fr-FR", {
   style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0,
@@ -33,6 +35,7 @@ export default function RapportMensuelPage() {
   const [mois, setMois] = useState(previousMonthYYYYMM());
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloaded, setDownloaded] = useState<{ filename: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -58,24 +61,50 @@ export default function RapportMensuelPage() {
 
   async function downloadPdf() {
     toast.loading("Génération PDF…", { id: "rep-pdf" });
-    try {
-      const r = await fetch(`/api/cashbox/monthly-report-pdf?mois=${mois}`);
-      if (!r.ok) throw new Error("Échec génération");
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `salam-rapport-mensuel-${mois}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("PDF téléchargé", { id: "rep-pdf" });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur", { id: "rep-pdf" });
+    const filename = `salam-rapport-mensuel-${mois}.pdf`;
+    const r = await downloadOrShare({
+      url: `/api/cashbox/monthly-report-pdf?mois=${mois}`,
+      filename,
+      contentType: "application/pdf",
+      shareTitle: `Rapport mensuel ${mois}`,
+    });
+    if (r.success) {
+      toast.success(
+        r.strategy === "share" ? "PDF partagé"
+        : r.strategy === "newtab" ? "PDF ouvert dans Safari"
+        : "PDF téléchargé",
+        { id: "rep-pdf" }
+      );
+      setDownloaded({ filename });
+    } else if (r.strategy === "cancelled") {
+      toast.dismiss("rep-pdf");
+    } else {
+      toast.error(r.error ?? "Erreur", { id: "rep-pdf" });
     }
   }
-  function downloadCsv() {
-    const a = document.createElement("a");
-    a.href = `/api/cashbox/monthly-report-csv?mois=${mois}`;
-    a.download = `salam-rapport-mensuel-${mois}.csv`; a.click();
-    toast.success("CSV téléchargé");
+
+  async function downloadCsv() {
+    toast.loading("Génération CSV…", { id: "rep-csv" });
+    const filename = `salam-rapport-mensuel-${mois}.csv`;
+    const r = await downloadOrShare({
+      url: `/api/cashbox/monthly-report-csv?mois=${mois}`,
+      filename,
+      contentType: "text/csv",
+      shareTitle: `Rapport CSV ${mois}`,
+    });
+    if (r.success) {
+      toast.success(
+        r.strategy === "share" ? "CSV partagé"
+        : r.strategy === "newtab" ? "CSV ouvert dans Safari"
+        : "CSV téléchargé",
+        { id: "rep-csv" }
+      );
+      setDownloaded({ filename });
+    } else if (r.strategy === "cancelled") {
+      toast.dismiss("rep-csv");
+    } else {
+      toast.error(r.error ?? "Erreur", { id: "rep-csv" });
+    }
   }
 
   return (
@@ -215,6 +244,13 @@ export default function RapportMensuelPage() {
           </section>
         </>
       )}
+
+      <DownloadCompleteBar
+        filename={downloaded?.filename ?? null}
+        onDismiss={() => setDownloaded(null)}
+        backLabel="Retour à l'admin"
+        backHref="/v2/admin"
+      />
     </V2Shell>
   );
 }

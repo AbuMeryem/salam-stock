@@ -16,6 +16,8 @@ import {
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
 import type { DailyZSummary } from "@/lib/cashbox/daily-z";
+import { downloadOrShare } from "@/lib/download-helper";
+import { DownloadCompleteBar } from "@/components/v2/DownloadCompleteBar";
 
 function formatEurFr(n: number) {
   return new Intl.NumberFormat("fr-FR", {
@@ -60,6 +62,7 @@ export default function RecapFiscalPage() {
   const [date, setDate] = useState(yesterdayIsoParis());
   const [summary, setSummary] = useState<DailyZSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloaded, setDownloaded] = useState<{ filename: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -82,31 +85,53 @@ export default function RecapFiscalPage() {
 
   async function downloadPdf() {
     toast.loading("Génération du PDF…", { id: "z-pdf" });
-    try {
-      const res = await fetch(`/api/cashbox/daily-z-pdf?date=${date}`);
-      if (!res.ok) throw new Error("Génération PDF échouée");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `salam-drive-Z-${date}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("PDF téléchargé", { id: "z-pdf" });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur", { id: "z-pdf" });
+    const filename = `salam-drive-Z-${date}.pdf`;
+    const r = await downloadOrShare({
+      url: `/api/cashbox/daily-z-pdf?date=${date}`,
+      filename,
+      contentType: "application/pdf",
+      shareTitle: `Récap fiscal ${date}`,
+    });
+    if (r.success) {
+      toast.success(
+        r.strategy === "share"
+          ? "PDF partagé"
+          : r.strategy === "newtab"
+            ? "PDF ouvert dans Safari"
+            : "PDF téléchargé",
+        { id: "z-pdf" }
+      );
+      setDownloaded({ filename });
+    } else if (r.strategy === "cancelled") {
+      toast.dismiss("z-pdf");
+    } else {
+      toast.error(r.error ?? "Erreur", { id: "z-pdf" });
     }
   }
 
   async function downloadCsv() {
-    try {
-      const a = document.createElement("a");
-      a.href = `/api/cashbox/daily-z-csv?date=${date}`;
-      a.download = `salam-drive-Z-${date}.csv`;
-      a.click();
-      toast.success("CSV téléchargé");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
+    toast.loading("Génération du CSV…", { id: "z-csv" });
+    const filename = `salam-drive-Z-${date}.csv`;
+    const r = await downloadOrShare({
+      url: `/api/cashbox/daily-z-csv?date=${date}`,
+      filename,
+      contentType: "text/csv",
+      shareTitle: `Récap fiscal CSV ${date}`,
+    });
+    if (r.success) {
+      toast.success(
+        r.strategy === "share"
+          ? "CSV partagé"
+          : r.strategy === "newtab"
+            ? "CSV ouvert dans Safari"
+            : "CSV téléchargé",
+        { id: "z-csv" }
+      );
+      setDownloaded({ filename });
+    } else if (r.strategy === "cancelled") {
+      toast.dismiss("z-csv");
+    } else {
+      toast.error(r.error ?? "Erreur", { id: "z-csv" });
     }
   }
 
@@ -373,6 +398,13 @@ export default function RecapFiscalPage() {
           </p>
         </section>
       )}
+
+      <DownloadCompleteBar
+        filename={downloaded?.filename ?? null}
+        onDismiss={() => setDownloaded(null)}
+        backLabel="Retour à l'admin"
+        backHref="/v2/admin"
+      />
     </V2Shell>
   );
 }
