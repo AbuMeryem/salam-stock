@@ -30,8 +30,19 @@ import type {
   InventaireTournant,
   Reception,
   SortieStock,
+  SortieType,
   TransfertInterDepot,
 } from "@/lib/types/db";
+
+const SORTIE_LABEL: Record<SortieType, string> = {
+  casse_manipulation: "Casse manip.",
+  casse_client: "Casse client",
+  perime_dlc: "Périmé DLC",
+  perime_ddm: "Périmé DDM",
+  defaut_fournisseur: "Défaut fourn.",
+  demarque_inconnue: "Démarque inconnue",
+  autre: "Autre motif",
+};
 
 interface DepotStats {
   depot: Depot;
@@ -386,7 +397,7 @@ function ActivityRow({
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-text-primary">
-            Sortie {row.item.type} × {row.item.quantite} · {d?.nom}
+            Sortie {SORTIE_LABEL[row.item.type] ?? row.item.type} × {row.item.quantite} · {d?.nom}
           </p>
           <p className="text-[10px] text-text-tertiary">
             {e?.prenom} {e?.nom} · {timeAgo(row.date)}

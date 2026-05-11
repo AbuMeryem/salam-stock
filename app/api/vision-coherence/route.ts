@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
     // Deterministic mock — vary by sortie type so the demo dashboard shows realistic flags.
-    const lowConfTypes = ["vol_identifie", "autre"];
+    const lowConfTypes = ["demarque_inconnue", "autre"];
     const score = lowConfTypes.includes(body.type)
       ? 0.45 + Math.random() * 0.15
       : 0.78 + Math.random() * 0.18;
