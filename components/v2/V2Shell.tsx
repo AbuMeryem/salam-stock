@@ -192,65 +192,85 @@ export function V2Shell({
           {depot && children}
         </motion.main>
 
-        {/* BOTTOM NAV — 4 primary + "Plus" */}
+        {/* BOTTOM NAV — 4 primary + "Plus"
+            Pill 100% opaque pour rester lisible sur n'importe quel
+            background de page (cream, gradient, image). WCAG AA :
+            labels en text-secondary (#6B7280) → 4.74:1 sur blanc. */}
         {!hideNav && (
           <nav
             className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none"
             aria-label="Navigation principale"
           >
-            <div className="mx-auto max-w-[460px] px-3 pb-2 pointer-events-auto">
-              <div className="bg-white/96 backdrop-blur-xl rounded-[24px] shadow-card-lg border border-rule px-2 py-2 flex items-center gap-1">
-                {primary.map((it) => {
-                  const Icon = it.icon;
-                  const active = it.exact
-                    ? pathname === it.href
-                    : pathname.startsWith(it.href);
-                  return (
-                    <Link
-                      key={it.href}
-                      href={it.href}
-                      className="relative flex flex-col items-center justify-center px-1 py-1.5 flex-1 min-w-0"
-                    >
-                      {active && (
-                        <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-7 h-0.5 rounded-full bg-gold" />
-                      )}
-                      <span
-                        className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-                          active ? "bg-[color:var(--accent-gold-soft)]" : ""
-                        }`}
+            {/* Scroll-fade : 28px de cream→transparent au-dessus du pill,
+                pour fader le contenu de la page sans glassmorphism. */}
+            <div
+              aria-hidden
+              className="h-7 w-full"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(250,247,238,0) 0%, rgba(250,247,238,1) 100%)",
+              }}
+            />
+            <div className="bg-cream">
+              <div className="mx-auto max-w-[460px] px-3 pb-2 pt-1 pointer-events-auto">
+                <div className="bg-white rounded-[24px] shadow-card-lg border border-rule px-2 py-2 flex items-center gap-1">
+                  {primary.map((it) => {
+                    const Icon = it.icon;
+                    const active = it.exact
+                      ? pathname === it.href
+                      : pathname.startsWith(it.href);
+                    return (
+                      <Link
+                        key={it.href}
+                        href={it.href}
+                        aria-current={active ? "page" : undefined}
+                        className="relative flex flex-col items-center justify-center px-1 py-1.5 flex-1 min-w-0"
                       >
-                        <Icon
-                          className={`w-[22px] h-[22px] transition-colors ${
-                            active ? "text-primary-dark" : "text-text-tertiary"
+                        {active && (
+                          <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-7 h-0.5 rounded-full bg-gold" />
+                        )}
+                        <span
+                          className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+                            active ? "bg-[color:var(--accent-gold-soft)]" : ""
                           }`}
-                          strokeWidth={active ? 2.4 : 1.8}
-                        />
-                      </span>
-                      <span
-                        className={`text-[10px] font-semibold leading-tight mt-0.5 transition-colors whitespace-nowrap ${
-                          active ? "text-primary-dark" : "text-text-tertiary"
-                        }`}
-                      >
-                        {it.label}
-                      </span>
-                    </Link>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => setSheetOpen(true)}
-                  aria-label="Ouvrir le menu"
-                  aria-expanded={sheetOpen}
-                  className="relative flex flex-col items-center justify-center px-1 py-1.5 flex-1 min-w-0"
-                >
-                  <MoreHorizontal
-                    className="w-[22px] h-[22px] text-text-tertiary"
-                    strokeWidth={1.8}
-                  />
-                  <span className="text-[10px] font-semibold leading-tight mt-0.5 text-text-tertiary whitespace-nowrap">
-                    Plus
-                  </span>
-                </button>
+                        >
+                          <Icon
+                            className={`w-[22px] h-[22px] transition-colors ${
+                              active ? "text-primary-dark" : "text-text-secondary"
+                            }`}
+                            strokeWidth={active ? 2.4 : 2}
+                          />
+                        </span>
+                        <span
+                          className={`text-[10.5px] leading-tight mt-0.5 transition-colors whitespace-nowrap ${
+                            active
+                              ? "text-primary-dark font-bold"
+                              : "text-text-secondary font-semibold"
+                          }`}
+                        >
+                          {it.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setSheetOpen(true)}
+                    aria-label="Ouvrir le menu"
+                    aria-expanded={sheetOpen}
+                    className="relative flex flex-col items-center justify-center px-1 py-1.5 flex-1 min-w-0"
+                  >
+                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-full">
+                      <MoreHorizontal
+                        className="w-[22px] h-[22px] text-text-secondary"
+                        strokeWidth={2}
+                      />
+                    </span>
+                    <span className="text-[10.5px] font-semibold leading-tight mt-0.5 text-text-secondary whitespace-nowrap">
+                      Plus
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </nav>
