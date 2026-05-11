@@ -17,8 +17,8 @@ interface PushSendBody {
 interface Subscription {
   id: string;
   endpoint: string;
-  p256dh: string;
-  auth: string;
+  keys_p256dh: string;
+  keys_auth: string;
 }
 
 function configureVapid(): boolean {
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const sb = supabaseServer();
   let query = sb
     .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
+    .select("id, endpoint, keys_p256dh, keys_auth")
     .eq("enabled", true);
   if (body.employe_ids?.length) {
     query = query.in("employe_id", body.employe_ids);
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     subscriptions.map(async (s) => {
       try {
         await webpush.sendNotification(
-          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          { endpoint: s.endpoint, keys: { p256dh: s.keys_p256dh, auth: s.keys_auth } },
           payload
         );
         await sb
