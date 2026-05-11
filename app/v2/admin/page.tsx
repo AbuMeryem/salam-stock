@@ -201,6 +201,13 @@ export default function V2AdminDashboardPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-white" />
             Alertes IA
           </a>
+          <a
+            href="/v2/admin/assistant-ia"
+            className="inline-flex items-center gap-2 bg-gradient-to-br from-primary to-primary-dark text-gold rounded-full px-3.5 py-1.5 text-[11.5px] font-bold shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-gold" />
+            Assistant IA
+          </a>
         </div>
 
         {/* TOGGLE Stock / Drive */}
