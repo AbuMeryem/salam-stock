@@ -199,25 +199,15 @@ export function V2Shell({
             le -lg qui crée une lueur halo sapin trop grasse sur cream. */}
         {!hideNav && (
           <nav
-            className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none bg-cream"
+            className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none"
             aria-label="Navigation principale"
           >
-            {/* Scroll-fade : 24px transparent→cream juste au-dessus,
-                pour fader le contenu de page qui passe derrière. */}
-            <div
-              aria-hidden
-              className="h-6 w-full -mt-6 absolute inset-x-0 pointer-events-none"
-              style={{
-                background:
-                  "linear-gradient(180deg, rgba(250,247,238,0) 0%, rgba(250,247,238,0.92) 60%, rgba(250,247,238,1) 100%)",
-              }}
-            />
             <div className="mx-auto max-w-[460px] px-3 pb-2 pt-2 pointer-events-auto">
               <div
                 className="bg-white rounded-[24px] border border-rule px-2 py-2 flex items-center gap-1"
                 style={{
                   boxShadow:
-                    "0 1px 0 rgba(14,59,46,0.04), 0 4px 12px rgba(14,59,46,0.06)",
+                    "0 1px 2px rgba(14,59,46,0.08), 0 6px 16px rgba(14,59,46,0.08)",
                 }}
               >
                   {primary.map((it) => {
