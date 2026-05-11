@@ -278,7 +278,11 @@ export async function addReceptionLigne(input: {
   return row;
 }
 
-export async function validateReception(receptionId: string): Promise<void> {
+export async function validateReception(
+  receptionId: string,
+  opts?: { vide?: boolean }
+): Promise<void> {
+  const vide = opts?.vide === true;
   const sb = supabase();
   if (sb) {
     // Compute aggregated additions per produit then bump stock_par_depot.
@@ -286,7 +290,7 @@ export async function validateReception(receptionId: string): Promise<void> {
       .from("receptions_lignes")
       .select("produit_id, quantite_calculee")
       .eq("reception_id", receptionId);
-    if (e1) throw e1;
+    if (e1) throw new Error(e1.message);
     const { data: rec, error: e2 } = await sb
       .from("receptions")
       .select("depot_id")
@@ -330,7 +334,7 @@ export async function validateReception(receptionId: string): Promise<void> {
     }
     await sb
       .from("receptions")
-      .update({ statut: "validee" as ReceptionStatus })
+      .update({ statut: "validee" as ReceptionStatus, reception_vide: vide })
       .eq("id", receptionId);
     return;
   }
@@ -357,6 +361,7 @@ export async function validateReception(receptionId: string): Promise<void> {
     }
   }
   rec.statut = "validee";
+  rec.reception_vide = vide;
 }
 
 export async function listReceptions(opts?: {

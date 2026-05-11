@@ -1,28 +1,15 @@
-"use client";
-
 /**
  * Root page — V2 is the default product since 2026-05-11.
- * - Authenticated employee (V2 PIN session) → /v2
- * - Otherwise → /v2/login
+ * Server-side redirect to /v2/login. The login page handles the "already
+ * authenticated" case via its own client-side useEffect (PIN session lives
+ * in localStorage and isn't visible server-side).
  *
  * The V1 routes (/login, /dashboard, /reception, /catalogue, etc.) remain
- * accessible via direct URL, but are no longer the default destination.
+ * accessible via direct URL — this redirect only affects the root.
  */
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useV2 } from "@/lib/v2-store";
-import { FullPageLoader } from "@/components/shared/LoadingSpinner";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  const router = useRouter();
-  const hydrated = useV2((s) => s.hydrated);
-  const employe = useV2((s) => s.currentEmploye);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    router.replace(employe ? "/v2" : "/v2/login");
-  }, [hydrated, employe, router]);
-
-  return <FullPageLoader />;
+export default function HomePage(): never {
+  redirect("/v2/login");
 }

@@ -97,6 +97,7 @@ export interface Reception {
   numero_bl: string | null;
   photo_url: string;
   statut: ReceptionStatus;
+  reception_vide: boolean;
   created_at: string;
 }
 
