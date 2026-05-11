@@ -87,7 +87,7 @@ export default function V2HomePage() {
 
   return (
     <V2Shell>
-      <header className="px-5 pt-6">
+      <header className="px-5 pt-7">
         <p className="label-caps text-primary">
           {depot ? `Dépôt actif · ${depot.nom}` : "Dépôt non sélectionné"}
         </p>

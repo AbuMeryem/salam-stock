@@ -43,7 +43,7 @@ export default function V2PreparationPage() {
 
   return (
     <V2Shell>
-      <header className="px-5 pt-5">
+      <header className="px-5 pt-7">
         <button
           onClick={() => router.back()}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
