@@ -203,6 +203,9 @@ export function DriveRevenueChart({
                 strokeWidth: 1,
                 strokeDasharray: "3 3",
               }}
+              allowEscapeViewBox={{ x: false, y: false }}
+              offset={16}
+              wrapperStyle={{ outline: "none", zIndex: 50 }}
               contentStyle={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border-light)",
@@ -210,6 +213,19 @@ export function DriveRevenueChart({
                 boxShadow: "0 8px 24px rgba(14,59,46,0.12)",
                 padding: "10px 12px",
                 fontSize: 12,
+                maxWidth: 200,
+              }}
+              labelStyle={{
+                color: "var(--text-secondary)",
+                fontSize: 11,
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+              itemStyle={{
+                color: "var(--text-primary)",
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "2px 0",
               }}
               labelFormatter={(v) =>
                 typeof v === "string" ? formatDay(v) : String(v)
