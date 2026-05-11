@@ -1,0 +1,701 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Camera,
+  Check,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  PackageCheck,
+  PackagePlus,
+  ScanBarcode,
+  Truck,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { V2Shell } from "@/components/v2/V2Shell";
+import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
+import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
+import { PhotoCapture } from "@/components/reception/PhotoCapture";
+import { useV2 } from "@/lib/v2-store";
+import { supabase } from "@/lib/supabase";
+
+interface BdlLigne {
+  id: string;
+  produit_id: string | null;
+  code_barre_attendu: string | null;
+  quantite_attendue: number;
+  quantite_recue: number;
+  statut: "attendu" | "recu" | "manquant" | "surplus";
+  produits?: { id: string; nom: string; ean: string | null; categorie: string | null } | null;
+}
+
+interface BdlDetail {
+  id: string;
+  numero_bdl: string;
+  fournisseur_id: string | null;
+  depot_destination_id: string | null;
+  date_livraison_prevue: string;
+  statut: "prevue" | "en_cours" | "receptionnee" | "litige";
+  photo_palette_url_1: string | null;
+  photo_palette_url_2: string | null;
+  notes: string | null;
+  fournisseurs: { id: string; nom: string } | null;
+  depots: { id: string; nom: string } | null;
+  bons_de_livraison_lignes: BdlLigne[];
+}
+
+export default function BdlReceptionPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const bdlId = params?.id;
+  const employe = useV2((s) => s.currentEmploye);
+
+  const [bdl, setBdl] = useState<BdlDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [photoSlot, setPhotoSlot] = useState<1 | 2 | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Surplus modal state
+  const [surplusModal, setSurplusModal] = useState<
+    | { code: string; produitNom: string; produitId: string | null }
+    | null
+  >(null);
+  const [surplusQty, setSurplusQty] = useState(1);
+
+  // Ref pour éviter stale closure dans le scanner
+  const bdlRef = useRef<BdlDetail | null>(null);
+  bdlRef.current = bdl;
+
+  // ─── Load BDL details ──────────────────────────────────────────
+  async function fetchBdl() {
+    if (!bdlId) return;
+    setLoading(true);
+    const sb = supabase();
+    if (!sb) {
+      toast.error("Supabase indisponible");
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await sb
+      .from("bons_de_livraison")
+      .select(
+        `id, numero_bdl, fournisseur_id, depot_destination_id, date_livraison_prevue, statut, photo_palette_url_1, photo_palette_url_2, notes,
+         fournisseurs (id, nom),
+         depots (id, nom),
+         bons_de_livraison_lignes (
+           id, produit_id, code_barre_attendu, quantite_attendue, quantite_recue, statut,
+           produits (id, nom, ean, categorie)
+         )`
+      )
+      .eq("id", bdlId)
+      .single();
+    if (error) {
+      console.error(error);
+      toast.error("BDL introuvable");
+      setLoading(false);
+      return;
+    }
+    setBdl(data as unknown as BdlDetail);
+    // Marque comme en_cours si encore "prevue"
+    if ((data as unknown as BdlDetail).statut === "prevue") {
+      await sb
+        .from("bons_de_livraison")
+        .update({ statut: "en_cours" })
+        .eq("id", bdlId);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    void fetchBdl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bdlId]);
+
+  // ─── KPI dérivés ───────────────────────────────────────────────
+  const progression = useMemo(() => {
+    if (!bdl) return { scanned: 0, total: 0, pct: 0 };
+    const total = bdl.bons_de_livraison_lignes.reduce(
+      (s, l) => s + l.quantite_attendue,
+      0
+    );
+    const scanned = bdl.bons_de_livraison_lignes.reduce(
+      (s, l) => s + Math.min(l.quantite_recue, l.quantite_attendue),
+      0
+    );
+    return { scanned, total, pct: total > 0 ? (scanned / total) * 100 : 0 };
+  }, [bdl]);
+
+  const allRecu = useMemo(() => {
+    if (!bdl) return false;
+    return bdl.bons_de_livraison_lignes.every(
+      (l) => l.statut === "recu" || l.statut === "manquant"
+    );
+  }, [bdl]);
+
+  // ─── Scan handler ──────────────────────────────────────────────
+  async function handleScan(code: string) {
+    setScannerOpen(false);
+    const cur = bdlRef.current;
+    if (!cur) return;
+    const sb = supabase();
+    if (!sb) {
+      toast.error("Supabase indisponible");
+      return;
+    }
+
+    // Match contre une ligne du BDL ?
+    const matched = cur.bons_de_livraison_lignes.find(
+      (l) => l.code_barre_attendu === code || l.produits?.ean === code
+    );
+
+    if (matched) {
+      const nouvelleQte = matched.quantite_recue + 1;
+      const nouveauStatut: BdlLigne["statut"] =
+        nouvelleQte >= matched.quantite_attendue ? "recu" : "attendu";
+      const { error } = await sb
+        .from("bons_de_livraison_lignes")
+        .update({
+          quantite_recue: nouvelleQte,
+          statut: nouveauStatut,
+          scanne_le: new Date().toISOString(),
+          scanne_par: employe?.id ?? null,
+        })
+        .eq("id", matched.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success(
+        `${matched.produits?.nom ?? "Produit"} · +1 (${nouvelleQte}/${matched.quantite_attendue})`,
+        { duration: 1600 }
+      );
+      void fetchBdl();
+      return;
+    }
+
+    // EAN ∉ BDL : lookup produit + ouvre modal surplus
+    const { data: prod } = await sb
+      .from("produits")
+      .select("id, nom, ean")
+      .eq("ean", code)
+      .maybeSingle();
+    setSurplusModal({
+      code,
+      produitNom: (prod as { nom?: string } | null)?.nom ?? "Produit inconnu",
+      produitId: (prod as { id?: string } | null)?.id ?? null,
+    });
+    setSurplusQty(1);
+  }
+
+  // ─── Surplus submit ────────────────────────────────────────────
+  async function submitSurplus() {
+    if (!surplusModal || !bdl) return;
+    const sb = supabase();
+    if (!sb) return;
+    const { error } = await sb.from("alertes_surplus").insert({
+      bdl_id: bdl.id,
+      code_barre_scanne: surplusModal.code,
+      produit_id: surplusModal.produitId,
+      quantite_surplus: surplusQty,
+      signale_par: employe?.id ?? null,
+      statut: "en_attente",
+      notes: `Détecté au scan du BDL ${bdl.numero_bdl} — produit non commandé.`,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    // Notif mock vers admin (l'endpoint /api/notify accepte n'importe quel kind)
+    void fetch("/api/notify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "surplus_reception",
+        payload: {
+          bdl: bdl.numero_bdl,
+          produit: surplusModal.produitNom,
+          quantite: surplusQty,
+          signale_par: `${employe?.prenom ?? ""} ${employe?.nom ?? ""}`.trim(),
+        },
+      }),
+    }).catch(() => {});
+    toast.success("Surplus signalé à Otmane et Ahmed", { duration: 2200 });
+    setSurplusModal(null);
+  }
+
+  // ─── Photo palette upload ──────────────────────────────────────
+  async function handlePhotoCapture(dataUrl: string) {
+    if (!bdl || photoSlot === null) return;
+    const sb = supabase();
+    if (!sb) return;
+    const field =
+      photoSlot === 1 ? "photo_palette_url_1" : "photo_palette_url_2";
+    // Note: pour la démo on stocke directement la data URL (pas Storage).
+    // Upload Storage est trop fragile en démo et le résultat visuel est identique.
+    const { error } = await sb
+      .from("bons_de_livraison")
+      .update({ [field]: dataUrl })
+      .eq("id", bdl.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`Photo palette ${photoSlot} enregistrée`);
+    setPhotoOpen(false);
+    setPhotoSlot(null);
+    void fetchBdl();
+  }
+
+  // ─── Validation finale BDL ─────────────────────────────────────
+  async function finalize() {
+    if (!bdl) return;
+    if (!allRecu) {
+      const ok = window.confirm(
+        "Certaines lignes ne sont ni reçues ni marquées manquantes. Valider quand même ?"
+      );
+      if (!ok) return;
+    }
+    setSubmitting(true);
+    const sb = supabase();
+    if (!sb) {
+      setSubmitting(false);
+      return;
+    }
+    try {
+      // 1. Pour chaque ligne reçue, incrémenter stock_par_depot
+      for (const l of bdl.bons_de_livraison_lignes) {
+        if (l.statut !== "recu" || !l.produit_id || l.quantite_recue <= 0) {
+          continue;
+        }
+        const { data: existing } = await sb
+          .from("stock_par_depot")
+          .select("id, quantite")
+          .eq("produit_id", l.produit_id)
+          .eq("depot_id", bdl.depot_destination_id!)
+          .maybeSingle();
+        if (existing) {
+          await sb
+            .from("stock_par_depot")
+            .update({
+              quantite:
+                (existing as { quantite: number }).quantite + l.quantite_recue,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", (existing as { id: string }).id);
+        } else {
+          await sb.from("stock_par_depot").insert({
+            produit_id: l.produit_id,
+            depot_id: bdl.depot_destination_id,
+            quantite: l.quantite_recue,
+            is_visible: true,
+          });
+        }
+      }
+      // 2. Marque BDL receptionnee
+      await sb
+        .from("bons_de_livraison")
+        .update({
+          statut: "receptionnee",
+          receptionne_par: employe?.id ?? null,
+          receptionne_le: new Date().toISOString(),
+        })
+        .eq("id", bdl.id);
+      // 3. Notif (mock WhatsApp recap)
+      void fetch("/api/notify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "bdl_receptionne",
+          payload: {
+            bdl: bdl.numero_bdl,
+            fournisseur: bdl.fournisseurs?.nom,
+            depot: bdl.depots?.nom,
+            scanned: progression.scanned,
+            total: progression.total,
+            employe: `${employe?.prenom} ${employe?.nom}`,
+          },
+        }),
+      }).catch(() => {});
+      toast.success("Réception validée. Stock mis à jour.");
+      router.replace("/v2/reception");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur validation");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ─── Render ────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <V2Shell hideNav>
+        <div className="px-5 pt-10 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          <p className="text-sm text-text-secondary">Chargement BDL…</p>
+        </div>
+      </V2Shell>
+    );
+  }
+
+  if (!bdl) {
+    return (
+      <V2Shell hideNav>
+        <div className="px-5 pt-10 text-center">
+          <p className="text-sm text-text-secondary">BDL introuvable.</p>
+          <button
+            onClick={() => router.replace("/v2/reception")}
+            className="mt-4 btn-primary"
+          >
+            Retour
+          </button>
+        </div>
+      </V2Shell>
+    );
+  }
+
+  return (
+    <V2Shell hideNav>
+      <PageAccentStripe accent="sapin" />
+
+      {/* Header sticky */}
+      <header className="px-5 pt-7 pb-3 sticky top-0 z-30 bg-cream/95 backdrop-blur-md border-b border-rule">
+        <button
+          onClick={() => router.replace("/v2/reception")}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
+        >
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="label-caps text-primary">BDL · {bdl.fournisseurs?.nom ?? "—"}</p>
+            <h1 className="text-[22px] font-extrabold text-text-primary mt-0.5">
+              {bdl.numero_bdl}
+            </h1>
+            <p className="text-[12px] text-text-secondary mt-0.5">
+              Livraison <b>{bdl.depots?.nom ?? "—"}</b> ·{" "}
+              {new Date(bdl.date_livraison_prevue).toLocaleDateString("fr-FR", {
+                day: "2-digit",
+                month: "long",
+              })}
+            </p>
+          </div>
+          <span
+            className={`text-[10.5px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${
+              bdl.statut === "receptionnee"
+                ? "bg-success-soft text-success"
+                : bdl.statut === "en_cours"
+                  ? "bg-gold-soft text-primary-dark"
+                  : bdl.statut === "litige"
+                    ? "bg-danger-soft text-danger"
+                    : "bg-cream text-text-tertiary"
+            }`}
+          >
+            {bdl.statut === "receptionnee"
+              ? "Réceptionnée"
+              : bdl.statut === "en_cours"
+                ? "En cours"
+                : bdl.statut === "litige"
+                  ? "Litige"
+                  : "Prévue"}
+          </span>
+        </div>
+
+        {/* Progression */}
+        <div className="mt-3">
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-text-tertiary">
+              Progression
+            </span>
+            <span className="text-[13px] font-extrabold tabular text-text-primary">
+              {progression.scanned} / {progression.total} unités
+            </span>
+          </div>
+          <div className="h-2.5 rounded-full bg-cream overflow-hidden">
+            <motion.div
+              className="h-full bg-primary"
+              initial={{ width: 0 }}
+              animate={{ width: `${progression.pct}%` }}
+              transition={{ duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* Liste des lignes attendues */}
+      <section className="px-5 mt-4 pb-[200px]">
+        <p className="label-caps text-text-tertiary mb-2">
+          Produits attendus ({bdl.bons_de_livraison_lignes.length})
+        </p>
+        <div className="space-y-2">
+          {bdl.bons_de_livraison_lignes.map((l) => {
+            const isRecu = l.statut === "recu";
+            const isSurplus = l.statut === "surplus";
+            return (
+              <motion.div
+                key={l.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`bg-white border rounded-2xl p-3 flex items-center gap-3 ${
+                  isRecu
+                    ? "border-success/40"
+                    : isSurplus
+                      ? "border-danger/40"
+                      : "border-rule"
+                }`}
+              >
+                <span
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isRecu
+                      ? "bg-success-soft text-success"
+                      : isSurplus
+                        ? "bg-danger-soft text-danger"
+                        : "bg-cream text-text-tertiary"
+                  }`}
+                >
+                  {isRecu ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : isSurplus ? (
+                    <AlertTriangle className="w-5 h-5" />
+                  ) : (
+                    <PackagePlus className="w-5 h-5" />
+                  )}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13.5px] font-bold text-text-primary truncate">
+                    {l.produits?.nom ?? "Produit (sans nom)"}
+                  </p>
+                  <p className="text-[11px] text-text-tertiary mono mt-0.5">
+                    {l.code_barre_attendu ?? l.produits?.ean ?? "—"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={`text-[14px] font-extrabold tabular ${
+                      isRecu
+                        ? "text-success"
+                        : isSurplus
+                          ? "text-danger"
+                          : "text-text-primary"
+                    }`}
+                  >
+                    {l.quantite_recue} / {l.quantite_attendue}
+                  </p>
+                  <p
+                    className={`text-[10.5px] uppercase font-bold tracking-wide mt-0.5 ${
+                      isRecu
+                        ? "text-success"
+                        : isSurplus
+                          ? "text-danger"
+                          : "text-text-tertiary"
+                    }`}
+                  >
+                    {isRecu
+                      ? "Reçu"
+                      : isSurplus
+                        ? "Surplus"
+                        : l.statut === "manquant"
+                          ? "Manquant"
+                          : "À scanner"}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Photos palette */}
+        <div className="mt-6">
+          <p className="label-caps text-text-tertiary mb-2">Photos palette</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {[1, 2].map((slot) => {
+              const url =
+                slot === 1
+                  ? bdl.photo_palette_url_1
+                  : bdl.photo_palette_url_2;
+              return (
+                <button
+                  key={slot}
+                  onClick={() => {
+                    setPhotoSlot(slot as 1 | 2);
+                    setPhotoOpen(true);
+                  }}
+                  className="relative aspect-[4/3] rounded-2xl border-2 border-dashed border-primary/30 overflow-hidden bg-cream active:scale-95 transition-transform"
+                >
+                  {url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={url}
+                      alt={`Palette ${slot}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-primary gap-1">
+                      <ImagePlus className="w-5 h-5" />
+                      <span className="text-[11px] font-bold">
+                        Photo côté {slot}
+                      </span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Floating actions */}
+      <div className="fixed bottom-0 inset-x-0 z-30 pb-safe pointer-events-none">
+        <div className="mx-auto max-w-[460px] px-4 pt-3 pb-3 pointer-events-auto space-y-2.5">
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="w-full bg-primary text-white rounded-[22px] py-4 px-5 flex items-center justify-between shadow-card-lg active:scale-[0.99]"
+          >
+            <span className="flex items-center gap-3">
+              <span className="w-11 h-11 rounded-2xl bg-gold/20 text-gold flex items-center justify-center">
+                <ScanBarcode className="w-6 h-6" />
+              </span>
+              <span className="text-left">
+                <span className="block label-caps text-gold">SCANNER</span>
+                <span className="block font-bold text-[15px]">
+                  Scanner produit suivant
+                </span>
+              </span>
+            </span>
+            <PackagePlus className="w-5 h-5 text-gold" />
+          </button>
+
+          <button
+            onClick={finalize}
+            disabled={submitting}
+            className={`w-full rounded-[20px] py-3.5 px-4 flex items-center justify-between transition-colors disabled:opacity-50 ${
+              allRecu
+                ? "bg-success text-white shadow-card"
+                : "bg-white border border-rule text-text-primary"
+            }`}
+          >
+            <span className="text-left">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.12em]">
+                {submitting ? "Validation…" : "Valider la réception"}
+              </span>
+              <span className="block text-[13px] font-extrabold mt-0.5">
+                {allRecu
+                  ? "Toutes les lignes traitées"
+                  : `${progression.scanned}/${progression.total} unités traitées`}
+              </span>
+            </span>
+            <PackageCheck className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Scanner modal */}
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => void handleScan(code)}
+      />
+
+      {/* Photo capture modal */}
+      <PhotoCapture
+        open={photoOpen}
+        onClose={() => {
+          setPhotoOpen(false);
+          setPhotoSlot(null);
+        }}
+        onCapture={(d) => void handlePhotoCapture(d)}
+      />
+
+      {/* Surplus modal */}
+      <AnimatePresence>
+        {surplusModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end justify-center"
+          >
+            <motion.div
+              initial={{ y: 60 }}
+              animate={{ y: 0 }}
+              exit={{ y: 60 }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              className="bg-white w-full max-w-[460px] rounded-t-[28px] p-6 pb-8 shadow-card-lg"
+            >
+              <div className="flex items-start gap-3">
+                <span className="w-12 h-12 rounded-2xl bg-danger-soft text-danger flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </span>
+                <div className="flex-1">
+                  <p className="label-caps text-danger">Produit non commandé</p>
+                  <h3 className="text-[18px] font-extrabold text-text-primary mt-1">
+                    {surplusModal.produitNom}
+                  </h3>
+                  <p className="text-[11px] font-mono bg-cream text-text-tertiary inline-block px-2 py-1 rounded-lg mt-2">
+                    {surplusModal.code}
+                  </p>
+                </div>
+                <button onClick={() => setSurplusModal(null)}>
+                  <X className="w-5 h-5 text-text-tertiary" />
+                </button>
+              </div>
+              <p className="text-[13px] text-text-secondary mt-4">
+                Ce produit ne figure pas sur le bon de livraison du fournisseur.
+                Tu peux signaler le surplus à Otmane et Ahmed pour facturation
+                au fournisseur ou retour marchandise.
+              </p>
+              <div className="mt-5">
+                <label className="label-caps text-text-tertiary block mb-1.5">
+                  Quantité reçue en plus
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSurplusQty((q) => Math.max(1, q - 1))}
+                    className="w-12 h-12 rounded-2xl bg-cream font-bold text-xl text-text-primary"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    value={surplusQty}
+                    onChange={(e) =>
+                      setSurplusQty(Math.max(1, parseInt(e.target.value || "1", 10)))
+                    }
+                    inputMode="numeric"
+                    className="flex-1 input-field text-center text-2xl font-extrabold"
+                  />
+                  <button
+                    onClick={() => setSurplusQty((q) => q + 1)}
+                    className="w-12 h-12 rounded-2xl bg-cream font-bold text-xl text-text-primary"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => void submitSurplus()}
+                className="w-full mt-5 bg-danger text-white rounded-[18px] py-4 px-5 flex items-center justify-center gap-2 font-bold shadow-card-lg active:scale-[0.99]"
+              >
+                <Truck className="w-4 h-4" />
+                Signaler à Otmane et Ahmed
+              </button>
+              <button
+                onClick={() => setSurplusModal(null)}
+                className="w-full mt-2 text-text-secondary text-[13px] font-semibold py-2"
+              >
+                Annuler
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </V2Shell>
+  );
+}

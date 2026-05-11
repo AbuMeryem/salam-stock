@@ -5,21 +5,27 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   Camera,
   Check,
+  ChevronRight,
+  Loader2,
   Package,
   PackageOpen,
   PackagePlus,
+  PlayCircle,
   ScanBarcode,
   Search,
   Send,
   Sparkles,
+  Truck,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
+import { supabase } from "@/lib/supabase";
 import {
   ProductRecognitionModal,
   type RecognitionResult,
@@ -51,12 +57,29 @@ interface ScanRow {
 
 type Step = "intake" | "scanning" | "validate";
 
+interface BdlSummary {
+  id: string;
+  numero_bdl: string;
+  date_livraison_prevue: string;
+  statut: "prevue" | "en_cours" | "receptionnee" | "litige";
+  fournisseurs: { nom: string } | null;
+  depots: { nom: string } | null;
+  bons_de_livraison_lignes: Array<{
+    quantite_attendue: number;
+    quantite_recue: number;
+  }>;
+}
+
 export default function V2ReceptionPage() {
   const router = useRouter();
   const depot = useV2((s) => s.currentDepot);
   const employe = useV2((s) => s.currentEmploye);
 
   const [step, setStep] = useState<Step>("intake");
+  const [bdlToday, setBdlToday] = useState<BdlSummary[]>([]);
+  const [bdlEnCours, setBdlEnCours] = useState<BdlSummary[]>([]);
+  const [bdlLoading, setBdlLoading] = useState(true);
+  const [showLibre, setShowLibre] = useState(false);
   const [fournisseur, setFournisseur] = useState("");
   const [numeroBl, setNumeroBl] = useState("");
   const [photoCarton, setPhotoCarton] = useState<string | null>(null);
@@ -77,6 +100,50 @@ export default function V2ReceptionPage() {
   const [searchResults, setSearchResults] = useState<Produit[]>([]);
   const [pendingProduitForCarton, setPendingProduitForCarton] = useState<Produit | null>(null);
   const [recognitionOpen, setRecognitionOpen] = useState(false);
+
+  // ─── Fetch BDL today + en cours ─────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const sb = supabase();
+      if (!sb) {
+        if (!cancelled) setBdlLoading(false);
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        const { data, error } = await sb
+          .from("bons_de_livraison")
+          .select(
+            `id, numero_bdl, date_livraison_prevue, statut,
+             fournisseurs (nom), depots (nom),
+             bons_de_livraison_lignes (quantite_attendue, quantite_recue)`
+          )
+          .or(`date_livraison_prevue.eq.${today},statut.eq.en_cours`)
+          .neq("statut", "receptionnee")
+          .order("date_livraison_prevue", { ascending: true });
+        if (cancelled) return;
+        if (error) {
+          // Table peut ne pas exister si migration 0012 non appliquée
+          if (!error.message.includes("does not exist")) {
+            console.warn("[BDL] fetch error:", error.message);
+          }
+          setBdlToday([]);
+          setBdlEnCours([]);
+        } else {
+          const rows = (data ?? []) as unknown as BdlSummary[];
+          setBdlToday(rows.filter((b) => b.statut === "prevue"));
+          setBdlEnCours(rows.filter((b) => b.statut === "en_cours"));
+        }
+      } finally {
+        if (!cancelled) setBdlLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Avoid stale-closure on the scanner callback
   const scansRef = useRef(scans);
@@ -376,8 +443,97 @@ export default function V2ReceptionPage() {
         </h1>
       </header>
 
-      {step === "intake" && (
+      {step === "intake" && !showLibre && (
+        <>
+          {/* ─── BDL EN COURS ─────────────────────────────────────── */}
+          {bdlEnCours.length > 0 && (
+            <section className="px-5 mt-6">
+              <p className="label-caps text-primary mb-2">
+                Livraisons en cours · {bdlEnCours.length}
+              </p>
+              <div className="space-y-2">
+                {bdlEnCours.map((b) => (
+                  <BdlCard
+                    key={b.id}
+                    bdl={b}
+                    variant="encours"
+                    onClick={() => router.push(`/v2/reception/${b.id}`)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ─── BDL ATTENDUS AUJOURD'HUI ─────────────────────────── */}
+          <section className="px-5 mt-6">
+            <p className="label-caps text-text-tertiary mb-2">
+              Livraisons attendues aujourd&apos;hui
+            </p>
+            {bdlLoading ? (
+              <div className="bg-white border border-rule rounded-2xl p-6 flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                <p className="text-sm text-text-secondary">Chargement BDL…</p>
+              </div>
+            ) : bdlToday.length === 0 ? (
+              <div className="bg-cream border border-rule rounded-2xl p-6 text-center">
+                <Truck className="w-6 h-6 text-text-tertiary mx-auto mb-2" />
+                <p className="text-sm font-bold text-text-primary">
+                  Aucune livraison prévue aujourd&apos;hui
+                </p>
+                <p className="text-xs text-text-secondary mt-1">
+                  Tu peux lancer une réception libre (sans BDL) ci-dessous.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {bdlToday.map((b) => (
+                  <BdlCard
+                    key={b.id}
+                    bdl={b}
+                    variant="prevu"
+                    onClick={() => router.push(`/v2/reception/${b.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ─── RÉCEPTION LIBRE ─────────────────────────────────── */}
+          <section className="px-5 mt-6 pb-cta-only">
+            <p className="label-caps text-text-tertiary mb-2">
+              Réception libre
+            </p>
+            <button
+              onClick={() => setShowLibre(true)}
+              className="w-full bg-white border border-rule rounded-2xl py-4 px-4 flex items-center justify-between active:scale-[0.99] transition-transform"
+            >
+              <span className="flex items-center gap-3 text-text-primary">
+                <span className="w-10 h-10 rounded-xl bg-gold-soft text-primary-dark flex items-center justify-center">
+                  <PackagePlus className="w-5 h-5" />
+                </span>
+                <span className="text-left">
+                  <span className="block font-bold text-[14px]">
+                    Livraison surprise (sans BDL)
+                  </span>
+                  <span className="block text-[11.5px] text-text-secondary">
+                    Réception manuelle, photo carton, scan libre.
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-text-tertiary" />
+            </button>
+          </section>
+        </>
+      )}
+
+      {step === "intake" && showLibre && (
         <section className="px-5 mt-6 space-y-4">
+          <button
+            onClick={() => setShowLibre(false)}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-2"
+          >
+            <ArrowLeft className="w-4 h-4" /> Retour aux BDL
+          </button>
           <Field label="Fournisseur (optionnel)">
             <input
               value={fournisseur}
@@ -741,5 +897,86 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function BdlCard({
+  bdl,
+  variant,
+  onClick,
+}: {
+  bdl: BdlSummary;
+  variant: "prevu" | "encours";
+  onClick: () => void;
+}) {
+  const totalUnits = bdl.bons_de_livraison_lignes.reduce(
+    (s, l) => s + l.quantite_attendue,
+    0
+  );
+  const recu = bdl.bons_de_livraison_lignes.reduce(
+    (s, l) => s + Math.min(l.quantite_recue, l.quantite_attendue),
+    0
+  );
+  const nbProduits = bdl.bons_de_livraison_lignes.length;
+  const pct = totalUnits > 0 ? (recu / totalUnits) * 100 : 0;
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full bg-white border rounded-2xl p-4 flex flex-col gap-3 text-left active:scale-[0.99] transition-transform ${
+        variant === "encours"
+          ? "border-gold/40 shadow-card"
+          : "border-rule"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+            variant === "encours"
+              ? "bg-gold-soft text-primary-dark"
+              : "bg-cream text-primary"
+          }`}
+        >
+          {variant === "encours" ? (
+            <PlayCircle className="w-5 h-5" />
+          ) : (
+            <Truck className="w-5 h-5" />
+          )}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-text-tertiary">
+            BDL {bdl.numero_bdl}
+          </p>
+          <h3 className="text-[15px] font-extrabold text-text-primary truncate mt-0.5">
+            {bdl.fournisseurs?.nom ?? "Fournisseur inconnu"}
+          </h3>
+          <p className="text-[11.5px] text-text-secondary mt-0.5">
+            {nbProduits} produit{nbProduits > 1 ? "s" : ""} ·{" "}
+            <b className="text-text-primary">{totalUnits} u.</b>{" "}
+            <span className="bg-gold-soft text-primary-dark font-bold px-2 py-0.5 rounded-full ml-1 text-[10px] uppercase tracking-wide">
+              {bdl.depots?.nom ?? "—"}
+            </span>
+          </p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-text-tertiary mt-1 shrink-0" />
+      </div>
+      {variant === "encours" && (
+        <div>
+          <div className="flex items-baseline justify-between mb-1">
+            <span className="text-[10.5px] font-bold uppercase tracking-wide text-text-tertiary">
+              Progression
+            </span>
+            <span className="text-[12px] font-extrabold tabular text-text-primary">
+              {recu}/{totalUnits}
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-cream overflow-hidden">
+            <div
+              className="h-full bg-primary"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </button>
   );
 }
