@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
+import { RevenueChart, type RevenueDataPoint } from "@/components/v2/RevenueChart";
 import { useV2 } from "@/lib/v2-store";
 import {
   listDepots,
@@ -22,6 +23,7 @@ import {
   listInventairesDuJour,
   listProduitsInDepot,
   listReceptions,
+  listRevenueByDay,
   listSorties,
   listTransferts,
 } from "@/lib/db";
@@ -66,6 +68,7 @@ export default function V2AdminDashboardPage() {
   const [recentTransferts, setRecentTransferts] = useState<TransfertInterDepot[]>([]);
   const [recentInventaires, setRecentInventaires] = useState<InventaireTournant[]>([]);
   const [employes, setEmployes] = useState<Employe[]>([]);
+  const [revenue, setRevenue] = useState<RevenueDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -78,6 +81,10 @@ export default function V2AdminDashboardPage() {
     const today = new Date().toISOString().slice(0, 10);
     const allEmployes = await listEmployes();
     setEmployes(allEmployes);
+    // CA par jour Particulier / Pro (90j max, le chart limite à 7/30/90)
+    void listRevenueByDay({ days: 90 })
+      .then(setRevenue)
+      .catch(() => setRevenue([]));
 
     const computed: DepotStats[] = await Promise.all(
       ds.map(async (d) => {
@@ -186,6 +193,11 @@ export default function V2AdminDashboardPage() {
         </section>
       ) : (
         <>
+          {/* REVENUE CHART — courbes CA Particulier / Pro / Global */}
+          <section className="px-5 mt-5">
+            <RevenueChart data={revenue} initialSeries="global" initialPeriod={30} />
+          </section>
+
           {/* DEPOT GRID */}
           <section className="px-5 mt-5 space-y-3">
             {stats.map((s, idx) => {

@@ -929,6 +929,99 @@ export async function listLignesPourCommande(
   return SEED_COMMANDE_LIGNES.filter((l) => l.commande_id === commandeId);
 }
 
+/**
+ * CA par jour (Particulier vs Pro) sur les N derniers jours.
+ * Particulier = lignes drive zone 'particulier' OU 'traiteur'.
+ * Pro         = lignes drive zone 'professionnel'.
+ * Synthétise des points pour les jours sans données pour avoir une
+ * courbe continue (à zéro), ce qui rend les charts lisibles.
+ */
+export async function listRevenueByDay(opts?: {
+  days?: number;
+}): Promise<Array<{ date: string; particulier: number; pro: number }>> {
+  const days = opts?.days ?? 90;
+  const today = new Date();
+  const start = new Date(today.getTime() - (days - 1) * 86400_000);
+  start.setHours(0, 0, 0, 0);
+  const startIso = start.toISOString();
+
+  const sb = supabase();
+  const buckets = new Map<string, { particulier: number; pro: number }>();
+
+  // Pré-remplir les buckets pour avoir une courbe continue
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * 86400_000);
+    const key = d.toISOString().slice(0, 10);
+    buckets.set(key, { particulier: 0, pro: 0 });
+  }
+
+  if (sb) {
+    // Fetch commandes_drive + lignes en parallèle pour la fenêtre
+    const { data: cmds, error } = await sb
+      .from("commandes_drive")
+      .select(
+        "id, created_at, statut, total_ttc, " +
+          "commandes_drive_lignes(zone_preparation, quantite, prix_unitaire)"
+      )
+      .gte("created_at", startIso)
+      .neq("statut", "annule");
+    if (error) throw new Error(error.message);
+
+    for (const c of (cmds ?? []) as unknown as Array<{
+      created_at: string;
+      commandes_drive_lignes: Array<{
+        zone_preparation: string;
+        quantite: number;
+        prix_unitaire: number;
+      }>;
+    }>) {
+      const key = c.created_at.slice(0, 10);
+      const b = buckets.get(key);
+      if (!b) continue;
+      for (const l of c.commandes_drive_lignes ?? []) {
+        const total = Number(l.prix_unitaire) * Number(l.quantite);
+        if (l.zone_preparation === "professionnel") {
+          b.pro += total;
+        } else {
+          // particulier + traiteur regroupés (le client final)
+          b.particulier += total;
+        }
+      }
+    }
+  } else {
+    // Mode démo local : génère une courbe plausible déterministe pour
+    // que le chart soit beau sans données réelles.
+    let seed = 7919;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return (seed % 10_000) / 10_000;
+    };
+    let prevP = 320;
+    let prevPro = 180;
+    Array.from(buckets.entries()).forEach(([key, b], idx) => {
+      // Walk + weekend boost
+      const dayOfWeek = new Date(key + "T00:00:00").getDay();
+      const weekendBoost = dayOfWeek === 6 || dayOfWeek === 0 ? 1.25 : 1;
+      prevP = Math.max(
+        80,
+        prevP + (rand() - 0.4) * 90 + Math.sin(idx / 3) * 30
+      );
+      prevPro = Math.max(
+        40,
+        prevPro + (rand() - 0.5) * 55 + Math.cos(idx / 4) * 20
+      );
+      b.particulier = Math.round(prevP * weekendBoost);
+      b.pro = Math.round(prevPro * weekendBoost);
+    });
+  }
+
+  return Array.from(buckets.entries()).map(([date, b]) => ({
+    date,
+    particulier: b.particulier,
+    pro: b.pro,
+  }));
+}
+
 export async function updateLignePreparation(
   ligneId: string,
   patch: Partial<
