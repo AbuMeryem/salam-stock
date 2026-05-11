@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -9,6 +9,7 @@ import {
   PackageOpen,
   ShoppingBag,
   TrendingUp,
+  Wifi,
   XCircle,
 } from "lucide-react";
 import {
@@ -16,6 +17,7 @@ import {
   listDriveRevenueByDay,
   listLignesPourCommande,
 } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import type {
   CommandeDrive,
   CommandeDriveLigne,
@@ -94,34 +96,93 @@ export function DriveDashboardSection() {
   const [commandes, setCommandes] = useState<CommandeAggreg[]>([]);
   const [revenue, setRevenue] = useState<DriveRevenueDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "offline">(
+    "connecting"
+  );
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  /**
+   * Fetch combiné commandes + CA par jour. Appelé au mount ET à chaque
+   * event Realtime sur commandes_drive (ou son fallback polling).
+   */
+  const refetch = useCallback(async () => {
+    try {
+      const [enPrep, pret, retire, annule] = await Promise.all([
+        listCommandesDrive("en_preparation"),
+        listCommandesDrive("pret"),
+        listCommandesDrive("retire"),
+        listCommandesDrive("annule"),
+      ]);
+      const all = [...enPrep, ...pret, ...retire, ...annule];
+      const enriched = await Promise.all(
+        all.map(async (c) => ({
+          ...c,
+          lignes: await listLignesPourCommande(c.id),
+        }))
+      );
+      setCommandes(enriched);
+
+      const rev = await listDriveRevenueByDay({ days: 90 }).catch(() => []);
+      setRevenue(rev);
+      setLastUpdate(new Date());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  // Subscription Supabase Realtime sur commandes_drive + lignes
+  // Quand une nouvelle commande arrive (INSERT) ou change (UPDATE),
+  // on re-fetch tout le bloc (commandes + revenue). Debounce 600ms
+  // pour éviter les rafales sur un import en bulk.
+  const refetchDebouncedRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefetch = useCallback(() => {
+    if (refetchDebouncedRef.current) clearTimeout(refetchDebouncedRef.current);
+    refetchDebouncedRef.current = setTimeout(() => {
+      void refetch();
+    }, 600);
+  }, [refetch]);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        // Récupère TOUTES les statuts pour avoir un vrai dashboard
-        const [enPrep, pret, retire, annule] = await Promise.all([
-          listCommandesDrive("en_preparation"),
-          listCommandesDrive("pret"),
-          listCommandesDrive("retire"),
-          listCommandesDrive("annule"),
-        ]);
-        const all = [...enPrep, ...pret, ...retire, ...annule];
-        const enriched = await Promise.all(
-          all.map(async (c) => ({
-            ...c,
-            lignes: await listLignesPourCommande(c.id),
-          }))
-        );
-        setCommandes(enriched);
-      } finally {
-        setLoading(false);
-      }
-    })();
-    // CA drive par jour pour le chart (90j max, le chart limite à 7/30/90)
-    void listDriveRevenueByDay({ days: 90 })
-      .then(setRevenue)
-      .catch(() => setRevenue([]));
-  }, []);
+    const sb = supabase();
+    if (!sb) {
+      setLiveStatus("offline");
+      return;
+    }
+    const channel = sb
+      .channel("v2-admin-drive")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "commandes_drive" },
+        () => scheduleRefetch()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "commandes_drive_lignes" },
+        () => scheduleRefetch()
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setLiveStatus("live");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
+          setLiveStatus("offline");
+      });
+
+    // Fallback polling 20s en cas de Realtime cassé
+    const poll = setInterval(() => {
+      if (liveStatus !== "live") void refetch();
+    }, 20_000);
+
+    return () => {
+      clearInterval(poll);
+      if (refetchDebouncedRef.current)
+        clearTimeout(refetchDebouncedRef.current);
+      void sb.removeChannel(channel);
+    };
+  }, [refetch, scheduleRefetch, liveStatus]);
 
   // KPI par statut
   const byStatut = useMemo(() => {
@@ -227,10 +288,48 @@ export function DriveDashboardSection() {
     );
   }
 
+  const liveLabel =
+    liveStatus === "live"
+      ? "Temps réel"
+      : liveStatus === "connecting"
+        ? "Connexion…"
+        : "Polling 20s";
+  const liveDotColor =
+    liveStatus === "live"
+      ? "#22D67A"
+      : liveStatus === "connecting"
+        ? "#F2C314"
+        : "#9CA3AF";
+  const sinceUpdate = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
+
   return (
     <>
       {/* CHART CA Drive — courbe néon violet */}
       <section className="px-5 mt-5">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-[11px] inline-flex items-center gap-1.5 font-bold uppercase tracking-wide text-text-secondary">
+            <span className="relative inline-flex">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ background: liveDotColor }}
+              />
+              {liveStatus === "live" && (
+                <span
+                  className="absolute inset-0 w-2 h-2 rounded-full animate-ping"
+                  style={{ background: liveDotColor, opacity: 0.55 }}
+                />
+              )}
+            </span>
+            {liveLabel}
+          </p>
+          <p className="text-[10.5px] text-text-tertiary tabular">
+            {sinceUpdate < 5
+              ? "à l'instant"
+              : sinceUpdate < 60
+                ? `il y a ${sinceUpdate}s`
+                : `il y a ${Math.floor(sinceUpdate / 60)} min`}
+          </p>
+        </div>
         <DriveRevenueChart data={revenue} initialPeriod={30} />
       </section>
 
