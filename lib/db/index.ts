@@ -549,17 +549,45 @@ export async function createTransfert(input: {
     created_at: new Date().toISOString(),
   };
   if (sb) {
-    const { id: _localId, ...payload } = row;
+    // On omet `id` + `created_at` (générés DB). Mauvaise pratique de
+    // passer un id "trf-…" string non-UUID à une colonne uuid → Supabase
+    // 22P02 invalid input syntax for type uuid. Idem created_at géré
+    // par default now() côté DB.
+    const { id: _localId, created_at: _createdAt, ...payload } = row;
     void _localId;
+    void _createdAt;
+    console.log("[createTransfert] INSERT payload:", payload);
     const { data, error } = await sb
       .from("transferts_inter_depots")
       .insert(payload)
       .select()
       .single();
-    if (error) throw new Error(error.message);
-    // Adjust both stock rows
-    await adjustStock(input.produit_id, input.depot_source_id, -input.quantite);
-    await adjustStock(input.produit_id, input.depot_destination_id, input.quantite);
+    if (error) {
+      console.error("[createTransfert] INSERT error:", error);
+      throw new Error(
+        `Transfert refusé par la base : ${error.message}${
+          error.details ? ` (${error.details})` : ""
+        }`
+      );
+    }
+    console.log("[createTransfert] INSERT OK:", data);
+    // Side-effects stock : NON BLOQUANTS. Si l'ajustement plante, le
+    // transfert est déjà enregistré côté DB — l'utilisateur ne perd pas
+    // sa saisie. On loggue pour audit + cron qui recalculera le stock.
+    try {
+      await adjustStock(
+        input.produit_id,
+        input.depot_source_id,
+        -input.quantite
+      );
+      await adjustStock(
+        input.produit_id,
+        input.depot_destination_id,
+        input.quantite
+      );
+    } catch (sideErr) {
+      console.error("[createTransfert] adjustStock failed:", sideErr);
+    }
     return data as TransfertInterDepot;
   }
   localTransferts.push(row);

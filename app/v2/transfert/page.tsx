@@ -112,8 +112,16 @@ export default function V2TransfertPage() {
       return;
     }
     setSubmitting(true);
+    const startedAt = Date.now();
     try {
-      await createTransfert({
+      console.log("[Transfert] submit payload", {
+        source: source.nom,
+        destination: destination.nom,
+        produit: produit.nom,
+        quantite,
+        hasPhoto: !!photo,
+      });
+      const result = await createTransfert({
         depot_source_id: source.id,
         depot_destination_id: destination.id,
         produit_id: produit.id,
@@ -121,13 +129,20 @@ export default function V2TransfertPage() {
         employe_id: employe.id,
         photo_url: photo ?? undefined,
       });
+      console.log(
+        `[Transfert] succès en ${Date.now() - startedAt}ms`,
+        result?.id
+      );
       toast.success(
         `Transfert validé : ${quantite} × ${produit.nom} de ${source.nom} → ${destination.nom}`
       );
       router.replace("/v2");
     } catch (err) {
-      console.error(err);
-      toast.error(err instanceof Error ? err.message : "Erreur");
+      console.error("[Transfert] échec", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Transfert refusé : ${msg.slice(0, 160)}`, {
+        duration: 8000,
+      });
     } finally {
       setSubmitting(false);
     }
