@@ -41,7 +41,7 @@ export default function V2TransfertPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProduitInDepot[]>([]);
   const [showSearch, setShowSearch] = useState(false);
-  const [quantite, setQuantite] = useState<number>(1);
+  const [quantite, setQuantite] = useState<number | "">("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -102,8 +102,8 @@ export default function V2TransfertPage() {
       toast.error("Source et destination doivent être différentes");
       return;
     }
-    if (quantite <= 0) {
-      toast.error("Quantité invalide");
+    if (quantite === "" || quantite <= 0) {
+      toast.error("Saisis une quantité supérieure à 0");
       return;
     }
     if (stockSource !== null && quantite > stockSource) {
@@ -132,8 +132,10 @@ export default function V2TransfertPage() {
     }
   }
 
+  // Bouton actif dès qu'une source/dest/produit valides sont choisis ;
+  // la quantité est validée au clic (vide / 0 / supérieure au stock → toast).
   const canSubmit =
-    source && destination && source.id !== destination.id && produit && quantite > 0;
+    !!source && !!destination && source.id !== destination.id && !!produit;
 
   return (
     <V2Shell hideNav>
@@ -279,7 +281,15 @@ export default function V2TransfertPage() {
               min={1}
               max={stockSource ?? undefined}
               value={quantite}
-              onChange={(e) => setQuantite(parseInt(e.target.value || "1", 10))}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") setQuantite("");
+                else {
+                  const n = parseInt(v, 10);
+                  setQuantite(Number.isNaN(n) ? "" : n);
+                }
+              }}
+              placeholder={stockSource !== null ? `0 — ${stockSource} max` : "Quantité"}
               inputMode="numeric"
               className="input-field text-2xl font-bold text-center"
             />
