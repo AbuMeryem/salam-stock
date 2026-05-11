@@ -14,7 +14,7 @@ export type SortieType =
   | "perime_dlc"
   | "perime_ddm"
   | "defaut_fournisseur"
-  | "vol_identifie"
+  | "demarque_inconnue"
   | "autre";
 
 export type ReceptionStatus = "en_cours" | "validee";

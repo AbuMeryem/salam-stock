@@ -30,7 +30,7 @@ const TYPES: { value: SortieType; label: string; desc: string }[] = [
   { value: "perime_dlc", label: "Périmé DLC", desc: "Date limite de consommation dépassée" },
   { value: "perime_ddm", label: "Périmé DDM", desc: "Date de durabilité minimale dépassée" },
   { value: "defaut_fournisseur", label: "Défaut fournisseur", desc: "Produit reçu défectueux" },
-  { value: "vol_identifie", label: "Vol identifié", desc: "Vol constaté avec preuve" },
+  { value: "demarque_inconnue", label: "Démarque inconnue", desc: "Constat d'écart sans cause identifiée" },
   { value: "autre", label: "Autre motif", desc: "Précisez librement" },
 ];
 
