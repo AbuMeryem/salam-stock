@@ -47,6 +47,28 @@
 -- IDEMPOTENT — la migration peut être rejouée sans risque.
 -- ════════════════════════════════════════════════════════════════
 
+-- ───────────────────────────────────────────────────────────────
+-- Prérequis self-contained (au cas où 0004/0005 pas appliquées)
+-- ───────────────────────────────────────────────────────────────
+
+-- enum zone_preparation_drive
+do $$
+begin
+  create type zone_preparation_drive as enum (
+    'particulier', 'professionnel', 'traiteur'
+  );
+exception when duplicate_object then null;
+end$$;
+
+-- colonne zone_preparation sur commandes_drive_lignes
+alter table public.commandes_drive_lignes
+  add column if not exists zone_preparation zone_preparation_drive
+  not null default 'particulier';
+
+-- colonne est_traiteur sur produits
+alter table public.produits
+  add column if not exists est_traiteur boolean not null default false;
+
 -- Drop existing triggers/functions to allow re-run
 drop trigger if exists sync_drive_orders_to_stock on public.orders;
 drop trigger if exists sync_stock_statut_to_drive on public.commandes_drive;
