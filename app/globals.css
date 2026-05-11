@@ -28,6 +28,17 @@
   --nav-height: 64px;
   --cta-height: 80px;
   --header-height: 56px;
+  /* Elevation */
+  --shadow-card: 0 2px 12px rgba(14, 59, 46, 0.06);
+  --shadow-card-hover: 0 4px 20px rgba(14, 59, 46, 0.10);
+  --shadow-card-lg: 0 8px 32px rgba(14, 59, 46, 0.12);
+  --shadow-inset-soft: inset 0 0 0 1px rgba(14, 59, 46, 0.04);
+  /* Motion */
+  --ease-out-quart: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-page: 280ms;
 }
 
 * {
@@ -39,6 +50,29 @@ html, body {
   color: var(--text-primary);
   font-family: var(--font-jakarta), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular numbers everywhere a quantity sits next to text. Stops "16"
+   from being narrower than "30" — critical for stock-count alignment. */
+.tabular { font-variant-numeric: tabular-nums; }
+.mono {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary-green);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
@@ -79,6 +113,21 @@ body {
   @media (min-width: 640px) {
     .h2 { font-size: 24px; }
   }
+  .h3 {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+  }
+  .display {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+  }
+  @media (min-width: 640px) {
+    .display { font-size: 40px; }
+  }
   .body-md {
     font-size: 15px;
     line-height: 1.5;
@@ -87,6 +136,12 @@ body {
     font-size: 16px;
     line-height: 1.55;
   }
+  .body-sm {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
 
   .gradient-header {
     background: linear-gradient(180deg, #0E3B2E 0%, #082A20 100%);
@@ -94,9 +149,35 @@ body {
 
   .card {
     background: var(--bg-card);
+    border: 1px solid var(--border-light);
     border-radius: 20px;
-    box-shadow: 0 2px 12px rgba(14, 59, 46, 0.06);
+    box-shadow: var(--shadow-card);
     padding: 20px;
+  }
+  .card-tappable {
+    transition: transform var(--dur-fast) var(--ease-out-quart),
+                box-shadow var(--dur-base) var(--ease-out-quart);
+  }
+  .card-tappable:active {
+    transform: scale(0.985);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Skeleton block: subtle shimmer, never aggressive. */
+  .skeleton {
+    background: linear-gradient(
+      100deg,
+      var(--border-light) 0%,
+      #F1ECDD 50%,
+      var(--border-light) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.6s var(--ease-out-quart) infinite;
+    border-radius: 8px;
+  }
+  @keyframes skeletonShimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
   }
 
   .btn-primary {
@@ -110,10 +191,14 @@ body {
     padding: 14px 28px;
     font-weight: 600;
     font-size: 15px;
-    transition: background 160ms ease;
+    min-height: 48px;
+    transition:
+      background var(--dur-base) var(--ease-out-quart),
+      transform var(--dur-fast) var(--ease-out-quart);
   }
   .btn-primary:hover { background: var(--primary-green-hover); }
-  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
   .btn-gold {
     display: inline-flex;
@@ -185,12 +270,17 @@ body {
     font-size: 15px;
     color: var(--text-primary);
     outline: none;
-    transition: border-color 160ms ease;
+    transition:
+      border-color var(--dur-base) var(--ease-out-quart),
+      box-shadow var(--dur-base) var(--ease-out-quart);
+    min-height: 48px;
   }
+  .input-field::placeholder { color: var(--text-tertiary); }
   .input-field:focus {
     border-color: var(--primary-green);
-    box-shadow: 0 0 0 3px rgba(14, 59, 46, 0.08);
+    box-shadow: 0 0 0 3px rgba(14, 59, 46, 0.10);
   }
+  .input-field:focus-visible { outline: none; }
 
   .badge {
     display: inline-flex;
@@ -207,6 +297,52 @@ body {
   .badge-danger { background: var(--danger-soft); color: var(--danger); }
   .badge-gold { background: var(--accent-gold-soft); color: #8B6F0E; }
   .badge-neutral { background: var(--bg-cream); color: var(--text-secondary); }
+
+  /* Keypad button (login PIN). 28pt font, large square card, satisfying tap. */
+  .keypad-btn {
+    aspect-ratio: 1;
+    border-radius: 18px;
+    background: var(--bg-card);
+    border: 1px solid transparent;
+    box-shadow: var(--shadow-card);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    transition:
+      transform var(--dur-fast) var(--ease-out-quart),
+      box-shadow var(--dur-base) var(--ease-out-quart),
+      background var(--dur-base) var(--ease-out-quart);
+  }
+  .keypad-btn:active {
+    transform: scale(0.94);
+    background: var(--bg-cream);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .keypad-btn:disabled {
+    opacity: 0.35;
+    transform: none;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Section heading (label-caps + accent dot). */
+  .section-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--primary-green);
+  }
+  .section-eyebrow::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--accent-gold-bright);
+  }
 }
 
 @layer utilities {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -9,7 +10,6 @@ import {
   ArrowUpRight,
   Building2,
   ClipboardCheck,
-  Package,
   Repeat2,
   Sparkles,
 } from "lucide-react";
@@ -158,57 +158,91 @@ export default function V2AdminDashboardPage() {
       </header>
 
       {loading ? (
-        <p className="px-5 pt-10 text-center text-text-secondary">Chargement…</p>
+        <section className="px-5 mt-5 space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="bg-white border border-rule rounded-[20px] p-4 space-y-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="skeleton w-10 h-10" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="skeleton h-3.5 w-24" />
+                  <div className="skeleton h-2.5 w-32" />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[0, 1, 2, 3].map((j) => (
+                  <div key={j} className="space-y-1.5">
+                    <div className="skeleton h-2 w-12" />
+                    <div className="skeleton h-4 w-14" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
       ) : (
         <>
           {/* DEPOT GRID */}
           <section className="px-5 mt-5 space-y-3">
-            {stats.map((s) => (
-              <div
-                key={s.depot.id}
-                className="bg-white border border-rule rounded-2xl p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      s.depot.type === "entrepot"
-                        ? "bg-gold-soft text-primary-dark"
-                        : "bg-cream text-primary"
-                    }`}
-                  >
-                    <Building2 className="w-4 h-4" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-text-primary">
-                      {s.depot.nom}
-                    </p>
-                    <p className="text-[11px] text-text-tertiary uppercase tracking-wide">
-                      {s.depot.type === "entrepot"
-                        ? "Entrepôt back-office — pas de drive"
-                        : "Point de vente"}
-                    </p>
-                  </div>
-                  {s.ecartsCount > 0 && (
-                    <span className="badge badge-warning text-[10px]">
-                      <AlertTriangle className="w-3 h-3" />
-                      {s.ecartsCount} écart{s.ecartsCount > 1 ? "s" : ""}
+            {stats.map((s, idx) => {
+              const isEntrepot = s.depot.type === "entrepot";
+              return (
+                <motion.div
+                  key={s.depot.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.22,
+                    ease: [0.22, 0.61, 0.36, 1],
+                    delay: idx * 0.05,
+                  }}
+                  className="bg-white border border-rule rounded-[20px] p-4 shadow-card"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        isEntrepot
+                          ? "bg-gold-soft text-primary-dark"
+                          : "bg-cream text-primary"
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4" strokeWidth={2.2} />
                     </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-4 gap-2 mt-4 text-center">
-                  <Stat label="Produits" value={s.productCount} />
-                  <Stat label="Unités" value={s.totalUnits} />
-                  <Stat
-                    label="Valeur"
-                    value={`${Math.round(s.totalValue).toLocaleString("fr-FR")} €`}
-                  />
-                  <Stat
-                    label="Mouvts 24h"
-                    value={`${s.receptionsToday}↓ ${s.sortiesToday}↑`}
-                  />
-                </div>
-              </div>
-            ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-bold text-text-primary leading-tight">
+                        {s.depot.nom}
+                      </p>
+                      <p className="text-[10.5px] text-text-tertiary uppercase tracking-wide mt-0.5 leading-tight">
+                        {isEntrepot
+                          ? "Entrepôt back-office, pas de drive"
+                          : "Point de vente"}
+                      </p>
+                    </div>
+                    {s.ecartsCount > 0 && (
+                      <span className="badge badge-warning text-[10px]">
+                        <AlertTriangle className="w-3 h-3" />
+                        {s.ecartsCount} écart{s.ecartsCount > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mt-4 text-left">
+                    <Stat label="Produits" value={s.productCount} />
+                    <Stat label="Unités" value={s.totalUnits} />
+                    <Stat
+                      label="Valeur"
+                      value={`${Math.round(s.totalValue).toLocaleString("fr-FR")} €`}
+                    />
+                    <Stat
+                      label="Mouvts"
+                      value={`${s.receptionsToday}↓ ${s.sortiesToday}↑`}
+                      hint="24h"
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
           </section>
 
           {/* EMPTY RECEPTIONS — workflow safety net */}
@@ -380,13 +414,28 @@ export default function V2AdminDashboardPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
   return (
     <div>
-      <p className="text-[10px] text-text-tertiary uppercase tracking-wide font-bold">
+      <p className="text-[9.5px] text-text-tertiary uppercase tracking-wide font-bold flex items-baseline gap-1">
         {label}
+        {hint && (
+          <span className="text-text-tertiary/80 normal-case tracking-normal font-medium">
+            · {hint}
+          </span>
+        )}
       </p>
-      <p className="text-sm font-extrabold text-text-primary mt-0.5">{value}</p>
+      <p className="text-[15px] font-extrabold text-text-primary mt-1 tabular tracking-tight">
+        {value}
+      </p>
     </div>
   );
 }

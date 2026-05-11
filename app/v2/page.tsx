@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -19,7 +20,7 @@ const ACTIONS = [
   {
     href: "/v2/reception",
     title: "Nouvelle réception",
-    desc: "Scan carton/unité, photo, validation",
+    desc: "Scan carton, unité, photo, validation",
     icon: ArrowDownToLine,
     accent: "primary",
   },
@@ -48,113 +49,165 @@ const ACTIONS = [
 
 const ADMIN_ACTIONS = [
   {
+    href: "/v2/admin",
+    title: "Dashboard global",
+    desc: "Vue 3 dépôts, alertes IA",
+    icon: Sparkles,
+  },
+  {
     href: "/v2/preparation",
-    title: "Préparation Drive",
-    desc: "Commandes en attente",
+    title: "Préparation drive",
+    desc: "Commandes à préparer",
     icon: ShoppingBag,
   },
   {
     href: "/v2/inventaire",
     title: "Inventaire tournant",
-    desc: "5-10 produits du jour",
+    desc: "5 à 10 produits par jour",
     icon: ClipboardList,
   },
   {
     href: "/v2/etiquettes",
     title: "Imprimer étiquettes",
-    desc: "EAN-13 internes Brother QL-820",
+    desc: "EAN-13 Brother QL-820",
     icon: Tag,
-  },
-  {
-    href: "/v2/admin",
-    title: "Dashboard global",
-    desc: "Vue 3 dépôts + alertes IA",
-    icon: Sparkles,
   },
 ] as const;
 
-const accentClass = {
+const accentClass: Record<string, string> = {
   primary: "bg-primary text-white",
-  gold: "bg-gold text-primary-dark",
+  gold: "bg-[color:var(--accent-gold-bright)] text-primary-dark",
   danger: "bg-danger-soft text-danger",
   neutral: "bg-cream text-primary",
 };
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Bonne nuit";
+  if (h < 12) return "Bonjour";
+  if (h < 18) return "Bon après-midi";
+  return "Bonsoir";
+}
 
 export default function V2HomePage() {
   const employe = useV2((s) => s.currentEmploye);
   const depot = useV2((s) => s.currentDepot);
   const isManager = employe?.role === "manager" || employe?.role === "admin";
 
+  const greet = greeting();
+  const firstName = employe?.prenom ?? employe?.nom ?? "";
+
   return (
     <V2Shell>
       <header className="px-5 pt-7">
-        <p className="label-caps text-primary">
+        <p className="section-eyebrow">
           {depot ? `Dépôt actif · ${depot.nom}` : "Dépôt non sélectionné"}
         </p>
-        <h1 className="h1 text-text-primary mt-1">
-          Bonjour {employe?.prenom ?? employe?.nom} 👋
+        <h1 className="h1 text-text-primary mt-2">
+          {greet} <span className="text-primary">{firstName}</span>
         </h1>
         <p className="body-md text-text-secondary mt-1.5">
-          Choisis une action pour commencer ta journée.
+          Choisis une action pour démarrer.
         </p>
       </header>
 
-      <section className="px-5 mt-6 grid grid-cols-1 gap-3">
-        {ACTIONS.map((a) => {
+      <section className="px-5 mt-7 space-y-3">
+        {ACTIONS.map((a, i) => {
           const Icon = a.icon;
           return (
-            <Link
+            <motion.div
               key={a.href}
-              href={a.href}
-              className="bg-white rounded-2xl shadow-card border border-rule p-4 flex items-center gap-4 active:scale-[0.99] transition-transform"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.22,
+                ease: [0.22, 0.61, 0.36, 1],
+                delay: i * 0.04,
+              }}
             >
-              <span
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${accentClass[a.accent]}`}
+              <Link
+                href={a.href}
+                className="bg-white rounded-[20px] shadow-card border border-rule p-4 flex items-center gap-4 card-tappable focus-visible:outline-2 focus-visible:outline-primary block"
               >
-                <Icon className="w-5 h-5" strokeWidth={2.2} />
-              </span>
-              <div className="flex-1">
-                <p className="text-base font-bold text-text-primary">
-                  {a.title}
-                </p>
-                <p className="text-xs text-text-secondary mt-0.5">{a.desc}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-text-tertiary" />
-            </Link>
+                <span
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${accentClass[a.accent]}`}
+                >
+                  <Icon className="w-5 h-5" strokeWidth={2.2} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-bold text-text-primary leading-tight">
+                    {a.title}
+                  </p>
+                  <p className="text-[12.5px] text-text-secondary mt-1 leading-snug">
+                    {a.desc}
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-text-tertiary shrink-0" />
+              </Link>
+            </motion.div>
           );
         })}
       </section>
 
       {isManager && (
-        <section className="px-5 mt-8">
-          <p className="label-caps text-primary mb-3">Espace manager</p>
+        <section className="px-5 mt-9">
+          <p className="section-eyebrow mb-3">Espace manager</p>
           <div className="grid grid-cols-2 gap-3">
-            {ADMIN_ACTIONS.map((a) => {
+            {ADMIN_ACTIONS.map((a, i) => {
               const Icon = a.icon;
+              const highlight = a.href === "/v2/admin";
               return (
-                <Link
+                <motion.div
                   key={a.href}
-                  href={a.href}
-                  className="bg-white rounded-2xl shadow-card border border-rule p-4 active:scale-[0.99] transition-transform"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.22,
+                    ease: [0.22, 0.61, 0.36, 1],
+                    delay: 0.18 + i * 0.04,
+                  }}
                 >
-                  <span className="inline-flex w-10 h-10 rounded-xl bg-cream items-center justify-center text-primary mb-2">
-                    <Icon className="w-4 h-4" />
-                  </span>
-                  <p className="text-sm font-bold text-text-primary leading-tight">
-                    {a.title}
-                  </p>
-                  <p className="text-[11px] text-text-tertiary mt-1 line-clamp-2">
-                    {a.desc}
-                  </p>
-                </Link>
+                  <Link
+                    href={a.href}
+                    className={`relative rounded-[20px] shadow-card border p-4 card-tappable focus-visible:outline-2 focus-visible:outline-primary block h-full ${
+                      highlight
+                        ? "bg-primary border-primary text-white"
+                        : "bg-white border-rule"
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex w-10 h-10 rounded-xl items-center justify-center mb-3 ${
+                        highlight
+                          ? "bg-[color:var(--accent-gold-bright)] text-primary-dark"
+                          : "bg-cream text-primary"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" strokeWidth={2.2} />
+                    </span>
+                    <p
+                      className={`text-[14px] font-bold leading-tight ${
+                        highlight ? "text-white" : "text-text-primary"
+                      }`}
+                    >
+                      {a.title}
+                    </p>
+                    <p
+                      className={`text-[11.5px] mt-1 leading-snug ${
+                        highlight ? "text-text-ondarkmuted" : "text-text-tertiary"
+                      }`}
+                    >
+                      {a.desc}
+                    </p>
+                  </Link>
+                </motion.div>
               );
             })}
           </div>
         </section>
       )}
 
-      <p className="text-center text-[11px] text-text-tertiary mt-10">
-        Salam Stock V2 · multi-dépôts
+      <p className="text-center text-[11px] text-text-tertiary mt-12">
+        Salam Stock V2 · multi-dépôts Toulouse
       </p>
     </V2Shell>
   );

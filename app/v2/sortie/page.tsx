@@ -7,9 +7,15 @@ import {
   ArrowLeft,
   Camera,
   Check,
+  ClipboardEdit,
+  Clock,
+  HardHat,
   Search,
   ScanBarcode,
+  ShieldAlert,
   Sparkles,
+  TimerOff,
+  UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
@@ -24,14 +30,19 @@ import {
 } from "@/lib/db";
 import type { Produit, SortieType } from "@/lib/types/db";
 
-const TYPES: { value: SortieType; label: string; desc: string }[] = [
-  { value: "casse_manipulation", label: "Casse manipulation", desc: "Tombée pendant la manipulation" },
-  { value: "casse_client", label: "Casse client", desc: "Cassée par un client en magasin" },
-  { value: "perime_dlc", label: "Périmé DLC", desc: "Date limite de consommation dépassée" },
-  { value: "perime_ddm", label: "Périmé DDM", desc: "Date de durabilité minimale dépassée" },
-  { value: "defaut_fournisseur", label: "Défaut fournisseur", desc: "Produit reçu défectueux" },
-  { value: "demarque_inconnue", label: "Démarque inconnue", desc: "Constat d'écart sans cause identifiée" },
-  { value: "autre", label: "Autre motif", desc: "Précisez librement" },
+const TYPES: {
+  value: SortieType;
+  label: string;
+  desc: string;
+  icon: typeof Check;
+}[] = [
+  { value: "casse_manipulation", label: "Casse manip", desc: "Tombée pendant la manip", icon: HardHat },
+  { value: "casse_client", label: "Casse client", desc: "Cassée en magasin", icon: UserX },
+  { value: "perime_dlc", label: "Périmé DLC", desc: "Date limite consom.", icon: Clock },
+  { value: "perime_ddm", label: "Périmé DDM", desc: "Date durabilité min.", icon: TimerOff },
+  { value: "defaut_fournisseur", label: "Défaut fournisseur", desc: "Produit défectueux", icon: ShieldAlert },
+  { value: "demarque_inconnue", label: "Démarque inconnue", desc: "Écart sans cause", icon: AlertTriangle },
+  { value: "autre", label: "Autre motif", desc: "À préciser", icon: ClipboardEdit },
 ];
 
 export default function V2SortiePage() {
@@ -280,26 +291,61 @@ export default function V2SortiePage() {
       {/* TYPE */}
       {produit && (
         <section className={`px-5 mt-6 ${!type ? "pb-cta-only" : ""}`}>
-          <p className="label-caps text-text-tertiary mb-2">Motif de sortie</p>
-          <div className="space-y-2">
-            {TYPES.map((t) => (
-              <button
-                key={t.value}
-                onClick={() => setType(t.value)}
-                className={`w-full text-left p-3 rounded-2xl border transition-colors ${
-                  type === t.value
-                    ? "bg-danger-soft border-danger text-danger"
-                    : "bg-white border-rule text-text-primary"
-                }`}
-              >
-                <p className="text-sm font-bold">{t.label}</p>
-                <p className={`text-xs mt-0.5 ${
-                  type === t.value ? "text-danger/80" : "text-text-secondary"
-                }`}>
-                  {t.desc}
-                </p>
-              </button>
-            ))}
+          <p className="section-eyebrow mb-3">Motif de sortie</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {TYPES.map((t) => {
+              const Icon = t.icon;
+              const active = type === t.value;
+              const fullWidth = t.value === "autre";
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => setType(t.value)}
+                  aria-pressed={active}
+                  className={`relative text-left rounded-2xl border transition-all duration-200 ease-out active:scale-[0.98] ${
+                    fullWidth ? "col-span-2 px-4 py-3" : "p-3"
+                  } ${
+                    active
+                      ? "bg-danger-soft border-danger shadow-card"
+                      : "bg-white border-rule"
+                  }`}
+                >
+                  <div
+                    className={
+                      fullWidth ? "flex items-center gap-3" : "block"
+                    }
+                  >
+                    <span
+                      className={`inline-flex w-8 h-8 rounded-xl items-center justify-center shrink-0 transition-colors ${
+                        fullWidth ? "" : "mb-2"
+                      } ${
+                        active
+                          ? "bg-danger text-white"
+                          : "bg-cream text-text-secondary"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" strokeWidth={2.2} />
+                    </span>
+                    <div className="min-w-0">
+                      <p
+                        className={`text-[13px] font-bold leading-tight ${
+                          active ? "text-danger" : "text-text-primary"
+                        }`}
+                      >
+                        {t.label}
+                      </p>
+                      <p
+                        className={`text-[11px] mt-0.5 leading-tight ${
+                          active ? "text-danger/75" : "text-text-tertiary"
+                        }`}
+                      >
+                        {t.desc}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
           {type === "autre" && (
             <input
