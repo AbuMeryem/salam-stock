@@ -123,7 +123,7 @@ export function V2Shell({
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className={`${className} ${hideNav ? "pb-10" : "pb-32"}`}
+          className={`${className} ${hideNav ? "pb-10" : "pb-40"}`}
         >
           {!depot && (
             <div className="px-5 pt-6">
