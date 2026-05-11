@@ -90,7 +90,7 @@ export default function V2LoginPage() {
   return (
     <div className="min-h-screen bg-cream flex flex-col">
       <div className="mx-auto w-full max-w-[460px] flex-1 flex flex-col">
-        <header className="gradient-header rounded-b-[28px] pt-16 pb-10 px-6 text-text-ondark relative overflow-hidden">
+        <header className="gradient-header rounded-b-[28px] safe-top-hero pb-10 px-6 text-text-ondark relative overflow-hidden">
           {/* subtle texture: gold orb top-right */}
           <div
             aria-hidden

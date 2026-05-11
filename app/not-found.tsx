@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-cream flex flex-col">
       <div className="mx-auto w-full max-w-[460px] flex-1 flex flex-col">
-        <header className="gradient-header rounded-b-[28px] pt-16 pb-12 px-6 text-text-ondark">
+        <header className="gradient-header rounded-b-[28px] safe-top-hero pb-12 px-6 text-text-ondark">
           <p className="label-caps text-text-ondark/70">404 · introuvable</p>
           <h1 className="h1 text-text-ondark mt-2">Page non trouvée</h1>
           <p className="body-md text-text-ondarkmuted mt-2">

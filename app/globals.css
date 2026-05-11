@@ -351,6 +351,10 @@ body {
   .scrollbar-none::-webkit-scrollbar { display: none; }
   .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
   .safe-top { padding-top: max(env(safe-area-inset-top), 16px); }
+  /* Hero/onboarding gradient headers: safe-area + breathing room so the
+     iPhone Dynamic Island (~59pt) never touches a heading. */
+  .safe-top-hero { padding-top: calc(env(safe-area-inset-top, 0px) + 56px); }
+  .safe-top-md   { padding-top: calc(env(safe-area-inset-top, 0px) + 24px); }
   /* Bottom-padding helpers tied to nav-height + cta-height variables. */
   .pb-cta-stack {
     padding-bottom: calc(var(--nav-height) + var(--cta-height) + var(--safe-bottom) + 32px);
