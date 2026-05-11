@@ -86,21 +86,120 @@ export const SEED_EMPLOYES: Employe[] = [
     is_active: true,
     pin_code: "9999",
   },
+  {
+    // Sodrune (entrepôt back-office) avait 0 employé — le cron inventaire
+    // ne pouvait pas assigner. Reda Hamidou couvre l'entrepôt.
+    id: "emp-reda",
+    nom: "Hamidou",
+    prenom: "Reda",
+    role: "reception",
+    depot_principal_id: DEPOT_IDS.sodrune,
+    is_active: true,
+    pin_code: "4321",
+  },
 ];
 
-export const SEED_PRODUITS: Produit[] = PRODUCTS_V1.map((p) => ({
-  id: `prd-${p.id}`,
-  ean: p.barcode,
-  nom: p.name,
-  marque: p.brand,
-  categorie: p.category,
-  sous_categorie: null,
-  image_url: p.image_url,
-  description: p.description ?? null,
-  requires_barcode_print: p.barcode?.startsWith("290") ?? false,
-  created_at: "2026-05-01T08:00:00Z",
-  updated_at: "2026-05-08T08:00:00Z",
-}));
+/** Plats traiteur — préparés en cuisine au dépôt Particulier, mais
+ *  routés vers la zone "traiteur" du drive. Synchro avec
+ *  supabase/migrations/0005_traiteur_flag.sql. */
+const TRAITEUR_PRODUITS: Produit[] = [
+  {
+    id: "prd-traiteur-couscous",
+    ean: "2900200000011",
+    nom: "Couscous royal traiteur 4 pers",
+    marque: "Salam Cuisine",
+    categorie: "Traiteur",
+    sous_categorie: null,
+    image_url: null,
+    description: null,
+    requires_barcode_print: true,
+    est_traiteur: true,
+    created_at: "2026-05-01T08:00:00Z",
+    updated_at: "2026-05-08T08:00:00Z",
+  },
+  {
+    id: "prd-traiteur-tajine",
+    ean: "2900200000012",
+    nom: "Tajine agneau pruneaux 6 pers",
+    marque: "Salam Cuisine",
+    categorie: "Traiteur",
+    sous_categorie: null,
+    image_url: null,
+    description: null,
+    requires_barcode_print: true,
+    est_traiteur: true,
+    created_at: "2026-05-01T08:00:00Z",
+    updated_at: "2026-05-08T08:00:00Z",
+  },
+  {
+    id: "prd-traiteur-pastilla",
+    ean: "2900200000013",
+    nom: "Pastilla poulet maison",
+    marque: "Salam Cuisine",
+    categorie: "Traiteur",
+    sous_categorie: null,
+    image_url: null,
+    description: null,
+    requires_barcode_print: true,
+    est_traiteur: true,
+    created_at: "2026-05-01T08:00:00Z",
+    updated_at: "2026-05-08T08:00:00Z",
+  },
+  {
+    id: "prd-traiteur-mechoui",
+    ean: "2900200000014",
+    nom: "Méchoui d'agneau préparé 2kg",
+    marque: "Salam Cuisine",
+    categorie: "Traiteur",
+    sous_categorie: null,
+    image_url: null,
+    description: null,
+    requires_barcode_print: true,
+    est_traiteur: true,
+    created_at: "2026-05-01T08:00:00Z",
+    updated_at: "2026-05-08T08:00:00Z",
+  },
+  {
+    id: "prd-traiteur-salade",
+    ean: "2900200000015",
+    nom: "Salade composée maison 500g",
+    marque: "Salam Cuisine",
+    categorie: "Traiteur",
+    sous_categorie: null,
+    image_url: null,
+    description: null,
+    requires_barcode_print: true,
+    est_traiteur: true,
+    created_at: "2026-05-01T08:00:00Z",
+    updated_at: "2026-05-08T08:00:00Z",
+  },
+];
+
+const TRAITEUR_STOCK_PRICES: Record<string, { qty: number; prix: number }> = {
+  "prd-traiteur-couscous": { qty: 8, prix: 39.9 },
+  "prd-traiteur-tajine": { qty: 5, prix: 54.0 },
+  "prd-traiteur-pastilla": { qty: 12, prix: 18.5 },
+  "prd-traiteur-mechoui": { qty: 3, prix: 78.0 },
+  "prd-traiteur-salade": { qty: 16, prix: 8.9 },
+};
+
+export const SEED_PRODUITS: Produit[] = [
+  ...PRODUCTS_V1.map((p) => ({
+    id: `prd-${p.id}`,
+    ean: p.barcode,
+    nom: p.name,
+    marque: p.brand,
+    categorie: p.category,
+    sous_categorie: null,
+    image_url: p.image_url,
+    description: p.description ?? null,
+    requires_barcode_print: p.barcode?.startsWith("290") ?? false,
+    est_traiteur: false,
+    created_at: "2026-05-01T08:00:00Z",
+    updated_at: "2026-05-08T08:00:00Z",
+  })),
+  ...TRAITEUR_PRODUITS,
+];
 
 /** Heuristic: which depots get this product, with stock range. */
 function depotsFor(cat: string): { depot_id: string; range: [number, number] }[] {
@@ -179,6 +278,20 @@ export const SEED_STOCK: StockParDepot[] = (() => {
         is_visible: true,
         updated_at: "2026-05-08T08:00:00Z",
       });
+    });
+  });
+  // Stock traiteur — uniquement au Particulier (la cuisine est en magasin).
+  TRAITEUR_PRODUITS.forEach((p) => {
+    const meta = TRAITEUR_STOCK_PRICES[p.id];
+    if (!meta) return;
+    out.push({
+      id: `stock-${p.id}-${DEPOT_IDS.particulier}`,
+      produit_id: p.id,
+      depot_id: DEPOT_IDS.particulier,
+      quantite: meta.qty,
+      prix_vente: meta.prix,
+      is_visible: true,
+      updated_at: "2026-05-08T08:00:00Z",
     });
   });
   return out;

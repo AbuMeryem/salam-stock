@@ -6,17 +6,32 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Building2,
   Clock,
-  ShoppingBag,
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
 import { listCommandesDrive, listLignesPourCommande, listDepots } from "@/lib/db";
-import type { CommandeDrive, CommandeDriveLigne, Depot } from "@/lib/types/db";
+import type {
+  CommandeDrive,
+  CommandeDriveLigne,
+  Depot,
+  ZonePreparationDrive,
+} from "@/lib/types/db";
 
 interface CommandeWithLignes extends CommandeDrive {
   lignes: CommandeDriveLigne[];
 }
+
+type ZonePrep = ZonePreparationDrive;
+const ZONE_LABEL: Record<ZonePrep, string> = {
+  particulier: "Particulier",
+  professionnel: "Pro",
+  traiteur: "Traiteur",
+};
+const ZONE_EMOJI: Record<ZonePrep, string> = {
+  particulier: "🛒",
+  professionnel: "🏢",
+  traiteur: "🍽️",
+};
 
 export default function V2PreparationPage() {
   const router = useRouter();
@@ -65,11 +80,12 @@ export default function V2PreparationPage() {
           </div>
         ) : (
           commandes.map((cmd) => {
-            const byDepot = new Map<string, CommandeDriveLigne[]>();
+            const byZone = new Map<string, CommandeDriveLigne[]>();
             cmd.lignes.forEach((l) => {
-              const existing = byDepot.get(l.depot_id) ?? [];
+              const z = l.zone_preparation ?? "particulier";
+              const existing = byZone.get(z) ?? [];
               existing.push(l);
-              byDepot.set(l.depot_id, existing);
+              byZone.set(z, existing);
             });
             const totalLignes = cmd.lignes.length;
             const prepares = cmd.lignes.filter(
@@ -96,15 +112,14 @@ export default function V2PreparationPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-3 text-[11px] text-text-tertiary flex-wrap">
-                  {Array.from(byDepot.keys()).map((dId) => {
-                    const d = depots.find((x) => x.id === dId);
+                  {Array.from(byZone.keys()).map((z) => {
                     return (
                       <span
-                        key={dId}
+                        key={z}
                         className="inline-flex items-center gap-1 bg-cream px-2 py-1 rounded-full"
                       >
-                        <Building2 className="w-3 h-3" />
-                        {d?.nom ?? "?"} · {byDepot.get(dId)!.length}
+                        <span aria-hidden>{ZONE_EMOJI[z as ZonePrep]}</span>
+                        {ZONE_LABEL[z as ZonePrep]} · {byZone.get(z)!.length}
                       </span>
                     );
                   })}

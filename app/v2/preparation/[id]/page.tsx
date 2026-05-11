@@ -42,6 +42,18 @@ interface EnrichedLigne extends CommandeDriveLigne {
 
 const COLD_CATEGORIES = new Set(["Surgelés", "Frais", "Boucherie", "Charcuterie"]);
 
+const ZONE_LABEL: Record<"particulier" | "professionnel" | "traiteur", string> = {
+  particulier: "Zone Particulier",
+  professionnel: "Zone Professionnel",
+  traiteur: "Zone Traiteur",
+};
+
+const ZONE_EMOJI: Record<"particulier" | "professionnel" | "traiteur", string> = {
+  particulier: "🛒",
+  professionnel: "🏢",
+  traiteur: "🍽️",
+};
+
 export default function V2PreparationDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -79,14 +91,31 @@ export default function V2PreparationDetailPage() {
     setLignes(enriched);
   }
 
-  /** Sort cold first, then by depot. */
-  const ordered = useMemo(() => {
-    return [...lignes].sort((a, b) => {
-      const aCold = COLD_CATEGORIES.has(a.produit?.categorie ?? "") ? 0 : 1;
-      const bCold = COLD_CATEGORIES.has(b.produit?.categorie ?? "") ? 0 : 1;
-      if (aCold !== bCold) return aCold - bCold;
-      return a.depot_id.localeCompare(b.depot_id);
-    });
+  /** Group by zone_preparation (particulier / professionnel / traiteur),
+   *  cold-chain products first within each zone. */
+  const groupedByZone = useMemo(() => {
+    const order: Array<"particulier" | "professionnel" | "traiteur"> = [
+      "particulier",
+      "professionnel",
+      "traiteur",
+    ];
+    const buckets = new Map<string, EnrichedLigne[]>();
+    for (const l of lignes) {
+      const zone = l.zone_preparation ?? "particulier";
+      const list = buckets.get(zone) ?? [];
+      list.push(l);
+      buckets.set(zone, list);
+    }
+    for (const list of buckets.values()) {
+      list.sort((a, b) => {
+        const aCold = COLD_CATEGORIES.has(a.produit?.categorie ?? "") ? 0 : 1;
+        const bCold = COLD_CATEGORIES.has(b.produit?.categorie ?? "") ? 0 : 1;
+        return aCold - bCold;
+      });
+    }
+    return order
+      .map((z) => ({ zone: z, items: buckets.get(z) ?? [] }))
+      .filter((g) => g.items.length > 0);
   }, [lignes]);
 
   const handleScanRef = useRef<((c: string) => void) | undefined>(undefined);
@@ -214,62 +243,71 @@ export default function V2PreparationDetailPage() {
         </button>
       </section>
 
-      <section className="px-5 mt-5 space-y-2 pb-cta-only">
-        {ordered.map((l, i) => {
-          const cold = COLD_CATEGORIES.has(l.produit?.categorie ?? "");
-          const depot = depots.find((d) => d.id === l.depot_id);
-          const done = l.statut_preparation !== "en_attente";
-          return (
-            <motion.div
-              key={l.id}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className={`bg-white border rounded-2xl p-3 flex items-center gap-3 ${
-                done ? "opacity-60 border-rule" : "border-rule"
-              }`}
-            >
-              {cold && (
-                <span className="absolute -translate-x-1 -translate-y-1 bg-blue-100 text-blue-700 rounded-full p-0.5">
-                  <Snowflake className="w-3 h-3" />
-                </span>
-              )}
-              <ProductThumbnail
-                nom={l.produit?.nom ?? "?"}
-                categorie={l.produit?.categorie}
-                size={48}
-                rounded="xl"
-              />
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-bold truncate ${done ? "line-through" : ""}`}>
-                  {l.produit?.nom ?? "Produit"}
-                </p>
-                <p className="text-[11px] text-text-tertiary inline-flex items-center gap-1">
-                  <Building2 className="w-3 h-3" />
-                  {depot?.nom ?? "?"} · qté {l.quantite}
-                  {cold && <Snowflake className="w-3 h-3 text-blue-600 ml-1" />}
-                </p>
-              </div>
-              {l.statut_preparation === "prepare" && (
-                <span className="text-success">
-                  <Check className="w-5 h-5" />
-                </span>
-              )}
-              {l.statut_preparation === "manquant" && (
-                <span className="badge badge-danger text-[10px]">Manquant</span>
-              )}
-              {l.statut_preparation === "en_attente" && (
-                <button
-                  onClick={() => setMissingPhotoFor(l.id)}
-                  className="text-xs font-bold text-danger px-2 py-1.5 rounded-lg bg-danger-soft inline-flex items-center gap-1"
-                >
-                  <PackageMinus className="w-3 h-3" />
-                  Manquant
-                </button>
-              )}
-            </motion.div>
-          );
-        })}
+      <section className="px-5 mt-5 space-y-4 pb-cta-only">
+        {groupedByZone.map((group) => (
+          <div key={group.zone}>
+            <p className="label-caps text-text-tertiary mb-2 inline-flex items-center gap-1">
+              <span aria-hidden>{ZONE_EMOJI[group.zone]}</span>
+              {ZONE_LABEL[group.zone]} · {group.items.length} produit
+              {group.items.length > 1 ? "s" : ""}
+            </p>
+            <div className="space-y-2">
+              {group.items.map((l, i) => {
+                const cold = COLD_CATEGORIES.has(l.produit?.categorie ?? "");
+                const done = l.statut_preparation !== "en_attente";
+                return (
+                  <motion.div
+                    key={l.id}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className={`bg-white border rounded-2xl p-3 flex items-center gap-3 ${
+                      done ? "opacity-60 border-rule" : "border-rule"
+                    }`}
+                  >
+                    <ProductThumbnail
+                      nom={l.produit?.nom ?? "?"}
+                      categorie={l.produit?.categorie}
+                      size={48}
+                      rounded="xl"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold truncate ${done ? "line-through" : ""}`}>
+                        {l.produit?.nom ?? "Produit"}
+                      </p>
+                      <p className="text-[11px] text-text-tertiary inline-flex items-center gap-1">
+                        Qté {l.quantite}
+                        {cold && (
+                          <span className="inline-flex items-center gap-0.5 text-blue-600 ml-1">
+                            <Snowflake className="w-3 h-3" />
+                            Frais
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {l.statut_preparation === "prepare" && (
+                      <span className="text-success">
+                        <Check className="w-5 h-5" />
+                      </span>
+                    )}
+                    {l.statut_preparation === "manquant" && (
+                      <span className="badge badge-danger text-[10px]">Manquant</span>
+                    )}
+                    {l.statut_preparation === "en_attente" && (
+                      <button
+                        onClick={() => setMissingPhotoFor(l.id)}
+                        className="text-xs font-bold text-danger px-2 py-1.5 rounded-lg bg-danger-soft inline-flex items-center gap-1"
+                      >
+                        <PackageMinus className="w-3 h-3" />
+                        Manquant
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </section>
 
       <div className="fixed bottom-0 inset-x-0 z-30 pb-safe pointer-events-none">

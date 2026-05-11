@@ -571,6 +571,7 @@ export default function V2ReceptionPage() {
                         image_url: null,
                         description: null,
                         requires_barcode_print: false,
+                        est_traiteur: false,
                         created_at: "",
                         updated_at: "",
                       });

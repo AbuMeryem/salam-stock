@@ -25,6 +25,7 @@ export type CommandeDriveStatus =
   | "retire"
   | "annule";
 export type LignePreparationStatus = "en_attente" | "prepare" | "manquant";
+export type ZonePreparationDrive = "particulier" | "professionnel" | "traiteur";
 export type ModePaiement = "stripe" | "en_magasin";
 
 export interface Depot {
@@ -46,6 +47,7 @@ export interface Produit {
   image_url: string | null;
   description: string | null;
   requires_barcode_print: boolean;
+  est_traiteur: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -167,6 +169,9 @@ export interface CommandeDriveLigne {
   commande_id: string;
   produit_id: string;
   depot_id: string;
+  /** Zone physique de préparation (≠ dépôt de stock). Sodrune ne fait
+   *  jamais partie d'une commande drive — voir 0004_zones_drive.sql. */
+  zone_preparation: ZonePreparationDrive;
   quantite: number;
   prix_unitaire: number;
   statut_preparation: LignePreparationStatus;

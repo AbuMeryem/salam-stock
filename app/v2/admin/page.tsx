@@ -178,12 +178,14 @@ export default function V2AdminDashboardPage() {
                   >
                     <Building2 className="w-4 h-4" />
                   </span>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-base font-bold text-text-primary">
                       {s.depot.nom}
                     </p>
                     <p className="text-[11px] text-text-tertiary uppercase tracking-wide">
-                      {s.depot.type === "entrepot" ? "Entrepôt" : "Point de vente"}
+                      {s.depot.type === "entrepot"
+                        ? "Entrepôt back-office — pas de drive"
+                        : "Point de vente"}
                     </p>
                   </div>
                   {s.ecartsCount > 0 && (

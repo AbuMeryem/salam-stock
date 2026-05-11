@@ -765,12 +765,13 @@ const SEED_COMMANDES: CommandeDrive[] = [
 ];
 
 const SEED_COMMANDE_LIGNES: CommandeDriveLigne[] = [
-  // cmd-001 — Yasmine
+  // cmd-001 — Yasmine — démo multi-zones (Particulier + Pro + Traiteur)
   {
     id: "cl-001",
     commande_id: "cmd-001",
     produit_id: "prd-p-013",
     depot_id: "depot-particulier",
+    zone_preparation: "particulier",
     quantite: 1,
     prix_unitaire: 8.4,
     statut_preparation: "en_attente",
@@ -782,6 +783,7 @@ const SEED_COMMANDE_LIGNES: CommandeDriveLigne[] = [
     commande_id: "cmd-001",
     produit_id: "prd-p-001",
     depot_id: "depot-particulier",
+    zone_preparation: "particulier",
     quantite: 2,
     prix_unitaire: 6.9,
     statut_preparation: "en_attente",
@@ -793,6 +795,7 @@ const SEED_COMMANDE_LIGNES: CommandeDriveLigne[] = [
     commande_id: "cmd-001",
     produit_id: "prd-p-035",
     depot_id: "depot-professionnel",
+    zone_preparation: "professionnel",
     quantite: 1,
     prix_unitaire: 10.5,
     statut_preparation: "en_attente",
@@ -802,20 +805,34 @@ const SEED_COMMANDE_LIGNES: CommandeDriveLigne[] = [
   {
     id: "cl-004",
     commande_id: "cmd-001",
-    produit_id: "prd-p-007",
-    depot_id: "depot-sodrune",
-    quantite: 3,
-    prix_unitaire: 2.8,
+    produit_id: "prd-traiteur-pastilla",
+    depot_id: "depot-particulier",
+    zone_preparation: "traiteur",
+    quantite: 1,
+    prix_unitaire: 18.5,
     statut_preparation: "en_attente",
     prepare_par_employe_id: null,
     prepare_at: null,
   },
-  // cmd-002 — Karim
+  {
+    id: "cl-007",
+    commande_id: "cmd-001",
+    produit_id: "prd-traiteur-couscous",
+    depot_id: "depot-particulier",
+    zone_preparation: "traiteur",
+    quantite: 1,
+    prix_unitaire: 39.9,
+    statut_preparation: "en_attente",
+    prepare_par_employe_id: null,
+    prepare_at: null,
+  },
+  // cmd-002 — Karim — Particulier + Pro (pas de traiteur)
   {
     id: "cl-005",
     commande_id: "cmd-002",
     produit_id: "prd-p-005",
     depot_id: "depot-particulier",
+    zone_preparation: "particulier",
     quantite: 1,
     prix_unitaire: 11.5,
     statut_preparation: "en_attente",
@@ -826,7 +843,8 @@ const SEED_COMMANDE_LIGNES: CommandeDriveLigne[] = [
     id: "cl-006",
     commande_id: "cmd-002",
     produit_id: "prd-p-024",
-    depot_id: "depot-sodrune",
+    depot_id: "depot-professionnel",
+    zone_preparation: "professionnel",
     quantite: 6,
     prix_unitaire: 1.8,
     statut_preparation: "en_attente",
