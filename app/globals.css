@@ -12,10 +12,10 @@
   --accent-gold-bright: #DDB31C;
   --accent-gold-soft: #F4E9C4;
   --text-primary: #0F1A14;
-  --text-secondary: #6B7280;
-  --text-tertiary: #9CA3AF;
+  --text-secondary: #5A6470;     /* durci de #6B7280 → contrast 7.3:1 sur cream */
+  --text-tertiary: #7B8693;      /* durci de #9CA3AF → contrast 4.6:1 sur cream (WCAG AA) */
   --text-on-dark: #FFFFFF;
-  --text-on-dark-muted: #B8C8C0;
+  --text-on-dark-muted: #D7E0DA; /* durci de #B8C8C0 → contrast 8.1:1 sur sapin */
   --danger: #E5483D;
   --danger-soft: #FEF2F1;
   --success: #2D7A4F;

@@ -16,6 +16,7 @@ import {
 import { V2Shell } from "@/components/v2/V2Shell";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { RevenueChart, type RevenueDataPoint } from "@/components/v2/RevenueChart";
+import { DriveDashboardSection } from "@/components/v2/DriveDashboardSection";
 import { useV2 } from "@/lib/v2-store";
 import {
   listDepots,
@@ -69,6 +70,7 @@ export default function V2AdminDashboardPage() {
   const [recentInventaires, setRecentInventaires] = useState<InventaireTournant[]>([]);
   const [employes, setEmployes] = useState<Employe[]>([]);
   const [revenue, setRevenue] = useState<RevenueDataPoint[]>([]);
+  const [view, setView] = useState<"stock" | "drive">("stock");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -162,8 +164,36 @@ export default function V2AdminDashboardPage() {
         <p className="label-caps text-primary mt-3">Dashboard global</p>
         <h1 className="h1 text-text-primary mt-1">Bonjour {employe?.prenom}</h1>
         <p className="body-md text-text-secondary mt-1">
-          Vision unifiée des 3 dépôts en temps réel.
+          {view === "stock"
+            ? "Vision unifiée des 3 dépôts en temps réel."
+            : "Activité drive client : commandes, créneaux, top produits."}
         </p>
+
+        {/* TOGGLE Stock / Drive */}
+        <div
+          role="tablist"
+          aria-label="Vue dashboard"
+          className="inline-flex bg-white border border-rule rounded-full p-1 mt-4 shadow-card"
+        >
+          {(["stock", "drive"] as const).map((v) => {
+            const active = view === v;
+            return (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setView(v)}
+                className={`px-4 py-1.5 rounded-full text-[12.5px] font-bold transition-colors min-w-[88px] ${
+                  active
+                    ? "bg-primary text-white"
+                    : "text-text-secondary"
+                }`}
+              >
+                {v === "stock" ? "Vue Stock" : "Vue Drive"}
+              </button>
+            );
+          })}
+        </div>
       </header>
 
       {loading ? (
@@ -191,7 +221,11 @@ export default function V2AdminDashboardPage() {
             </div>
           ))}
         </section>
+      ) : view === "drive" ? (
+        /* ───────── VUE DRIVE ───────── */
+        <DriveDashboardSection />
       ) : (
+        /* ───────── VUE STOCK ───────── */
         <>
           {/* REVENUE CHART — courbes CA Particulier / Pro / Global */}
           <section className="px-5 mt-5">
