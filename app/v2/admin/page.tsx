@@ -17,6 +17,9 @@ import { V2Shell } from "@/components/v2/V2Shell";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { RevenueChart, type RevenueDataPoint } from "@/components/v2/RevenueChart";
 import { DriveDashboardSection } from "@/components/v2/DriveDashboardSection";
+import { PushNotifCard } from "@/components/v2/PushNotifCard";
+import { EmailRecapCard } from "@/components/v2/EmailRecapCard";
+import { WhatsAppRecapCard } from "@/components/v2/WhatsAppRecapCard";
 import { useV2 } from "@/lib/v2-store";
 import {
   listDepots,
@@ -192,6 +195,20 @@ export default function V2AdminDashboardPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-warning" />
             Import Cashmag
           </a>
+          <a
+            href="/v2/admin/alertes"
+            className="inline-flex items-center gap-2 bg-danger text-white rounded-full px-3.5 py-1.5 text-[11.5px] font-bold shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+            Alertes IA
+          </a>
+          <a
+            href="/v2/admin/assistant-ia"
+            className="inline-flex items-center gap-2 bg-gradient-to-br from-primary to-primary-dark text-gold rounded-full px-3.5 py-1.5 text-[11.5px] font-bold shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-gold" />
+            Assistant IA
+          </a>
         </div>
 
         {/* TOGGLE Stock / Drive */}
@@ -255,6 +272,12 @@ export default function V2AdminDashboardPage() {
           {/* REVENUE CHART — courbes CA Particulier / Pro / Global */}
           <section className="px-5 mt-5">
             <RevenueChart data={revenue} initialSeries="global" initialPeriod={30} />
+          </section>
+
+          {/* CANAUX D'ALERTE — Push + Email recap */}
+          <section className="px-5 mt-5 grid grid-cols-1 gap-3">
+            <PushNotifCard employeId={employe?.id ?? null} />
+            <EmailRecapCard defaultTo="ceo@hamy.studio" />
           </section>
 
           {/* DEPOT GRID */}
@@ -506,6 +529,11 @@ export default function V2AdminDashboardPage() {
           )}
         </>
       )}
+
+      {/* Recap WhatsApp 19h — mockup pour la démo */}
+      <section className="px-5 mt-6 mb-8">
+        <WhatsAppRecapCard />
+      </section>
     </V2Shell>
   );
 }
