@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import {
   listCommandesDrive,
+  listDriveRevenueByDay,
   listLignesPourCommande,
 } from "@/lib/db";
 import type {
@@ -20,6 +21,10 @@ import type {
   CommandeDriveLigne,
   CommandeDriveStatus,
 } from "@/lib/types/db";
+import {
+  DriveRevenueChart,
+  type DriveRevenueDataPoint,
+} from "./DriveRevenueChart";
 
 interface CommandeAggreg extends CommandeDrive {
   lignes: CommandeDriveLigne[];
@@ -87,6 +92,7 @@ function formatCreneau(iso: string) {
 
 export function DriveDashboardSection() {
   const [commandes, setCommandes] = useState<CommandeAggreg[]>([]);
+  const [revenue, setRevenue] = useState<DriveRevenueDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,6 +117,10 @@ export function DriveDashboardSection() {
         setLoading(false);
       }
     })();
+    // CA drive par jour pour le chart (90j max, le chart limite à 7/30/90)
+    void listDriveRevenueByDay({ days: 90 })
+      .then(setRevenue)
+      .catch(() => setRevenue([]));
   }, []);
 
   // KPI par statut
@@ -219,6 +229,11 @@ export function DriveDashboardSection() {
 
   return (
     <>
+      {/* CHART CA Drive — courbe néon violet */}
+      <section className="px-5 mt-5">
+        <DriveRevenueChart data={revenue} initialPeriod={30} />
+      </section>
+
       {/* KPI ligne */}
       <section className="px-5 mt-5">
         <motion.div
