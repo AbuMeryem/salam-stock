@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Package, Search } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { listProduitsInDepot } from "@/lib/db";
 import type { ProduitInDepot } from "@/lib/types/db";
@@ -92,11 +93,14 @@ export default function V2StockPage() {
             key={p.id}
             className="bg-white border border-rule rounded-2xl overflow-hidden"
           >
-            <div
-              className="aspect-square bg-cream bg-cover bg-center relative"
-              style={p.image_url ? { backgroundImage: `url(${p.image_url})` } : {}}
-            >
-              <span className="absolute top-2 right-2 bg-white/90 rounded-full px-2 py-0.5 text-[11px] font-bold text-primary inline-flex items-center gap-1">
+            <div className="aspect-square relative">
+              <ProductThumbnail
+                nom={p.nom}
+                categorie={p.categorie}
+                rounded="lg"
+                className="absolute inset-0 w-full h-full text-3xl"
+              />
+              <span className="absolute top-2 right-2 bg-white/95 rounded-full px-2 py-0.5 text-[11px] font-bold text-primary inline-flex items-center gap-1 shadow-sm">
                 <Package className="w-3 h-3" />
                 {p.quantite}
               </span>

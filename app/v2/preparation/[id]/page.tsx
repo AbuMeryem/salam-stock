@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
 import { PhotoCapture } from "@/components/reception/PhotoCapture";
@@ -213,7 +214,7 @@ export default function V2PreparationDetailPage() {
         </button>
       </section>
 
-      <section className="px-5 mt-5 space-y-2 pb-32">
+      <section className="px-5 mt-5 space-y-2 pb-cta-only">
         {ordered.map((l, i) => {
           const cold = COLD_CATEGORIES.has(l.produit?.categorie ?? "");
           const depot = depots.find((d) => d.id === l.depot_id);
@@ -233,9 +234,11 @@ export default function V2PreparationDetailPage() {
                   <Snowflake className="w-3 h-3" />
                 </span>
               )}
-              <span
-                className="w-12 h-12 rounded-xl bg-cream bg-cover bg-center shrink-0"
-                style={l.produit?.image_url ? { backgroundImage: `url(${l.produit.image_url})` } : {}}
+              <ProductThumbnail
+                nom={l.produit?.nom ?? "?"}
+                categorie={l.produit?.categorie}
+                size={48}
+                rounded="xl"
               />
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-bold truncate ${done ? "line-through" : ""}`}>

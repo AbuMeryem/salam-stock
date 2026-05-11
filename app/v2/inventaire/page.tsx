@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import {
   assignInventairesPourDepot,
@@ -142,7 +143,7 @@ export default function V2InventairePage() {
           Aucun inventaire assigné aujourd&apos;hui.
         </div>
       ) : (
-        <section className="px-5 mt-5 space-y-3 pb-32">
+        <section className="px-5 mt-5 space-y-3 pb-cta-only">
           <div className="bg-gold-soft rounded-2xl p-3 flex items-start gap-2 text-xs text-primary-dark">
             <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
             <p>
@@ -165,9 +166,11 @@ export default function V2InventairePage() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <span
-                    className="w-12 h-12 rounded-xl bg-cream bg-cover bg-center shrink-0"
-                    style={r.produit?.image_url ? { backgroundImage: `url(${r.produit.image_url})` } : {}}
+                  <ProductThumbnail
+                    nom={r.produit?.nom ?? "?"}
+                    categorie={r.produit?.categorie}
+                    size={48}
+                    rounded="xl"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-text-primary line-clamp-2">

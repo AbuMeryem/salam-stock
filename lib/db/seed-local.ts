@@ -19,7 +19,7 @@ interface ProductV1 {
   category: string;
   barcode: string;
   sale_price: number;
-  image_url: string;
+  image_url: string | null;
   description?: string;
 }
 

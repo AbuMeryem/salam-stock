@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { listProduitsInDepot } from "@/lib/db";
 import type { ProduitInDepot } from "@/lib/types/db";
@@ -98,10 +99,7 @@ export default function V2EtiquettesPage() {
                   key={p.id}
                   className="bg-white border border-rule rounded-xl p-3 flex items-center gap-3"
                 >
-                  <span
-                    className="w-10 h-10 rounded-lg bg-cream bg-cover bg-center shrink-0"
-                    style={p.image_url ? { backgroundImage: `url(${p.image_url})` } : {}}
-                  />
+                  <ProductThumbnail nom={p.nom} categorie={p.categorie} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-text-primary truncate">
                       {p.nom}

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
 import { PhotoCapture } from "@/components/reception/PhotoCapture";
@@ -369,7 +370,7 @@ export default function V2ReceptionPage() {
             </button>
           </section>
 
-          <section className="px-5 mt-5 pb-32">
+          <section className="px-5 mt-5 pb-cta-only">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-bold text-text-primary">
                 {scans.length} ligne{scans.length > 1 ? "s" : ""} scannée
@@ -570,8 +571,10 @@ export default function V2ReceptionPage() {
                       onClick={() => handleLearnUnitFor(p)}
                       className="w-full flex items-center gap-3 p-2 rounded-xl active:bg-cream"
                     >
-                      <span className="w-9 h-9 rounded-lg bg-cream bg-cover bg-center shrink-0"
-                        style={p.image_url ? { backgroundImage: `url(${p.image_url})` } : {}}
+                      <ProductThumbnail
+                        nom={p.nom}
+                        categorie={p.categorie}
+                        size={36}
                       />
                       <div className="flex-1 min-w-0 text-left">
                         <p className="text-sm font-bold text-text-primary truncate">

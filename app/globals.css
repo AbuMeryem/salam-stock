@@ -219,6 +219,9 @@ body {
   .pb-cta-stack {
     padding-bottom: calc(var(--nav-height) + var(--cta-height) + var(--safe-bottom) + 32px);
   }
+  .pb-cta-only {
+    padding-bottom: calc(var(--cta-height) + var(--safe-bottom) + 32px);
+  }
   .pb-nav-stack {
     padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 32px);
   }

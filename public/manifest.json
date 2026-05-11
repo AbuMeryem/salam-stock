@@ -2,7 +2,7 @@
   "name": "Salam Stock",
   "short_name": "Salam Stock",
   "description": "Gestion réception et stock — Salam Market Toulouse",
-  "start_url": "/",
+  "start_url": "/v2",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

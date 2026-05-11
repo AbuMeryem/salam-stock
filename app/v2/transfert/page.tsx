@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
 import { PhotoCapture } from "@/components/reception/PhotoCapture";
@@ -177,9 +178,11 @@ export default function V2TransfertPage() {
           </p>
           {produit ? (
             <div className="bg-white border border-rule rounded-2xl p-4 flex items-center gap-3">
-              <span
-                className="w-12 h-12 rounded-xl bg-cream bg-cover bg-center shrink-0"
-                style={produit.image_url ? { backgroundImage: `url(${produit.image_url})` } : {}}
+              <ProductThumbnail
+                nom={produit.nom}
+                categorie={produit.categorie}
+                size={48}
+                rounded="xl"
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-text-primary truncate">
@@ -238,9 +241,10 @@ export default function V2TransfertPage() {
                         }}
                         className="w-full flex items-center gap-3 p-2 rounded-xl active:bg-cream text-left"
                       >
-                        <span
-                          className="w-9 h-9 rounded-lg bg-cream bg-cover bg-center shrink-0"
-                          style={p.image_url ? { backgroundImage: `url(${p.image_url})` } : {}}
+                        <ProductThumbnail
+                          nom={p.nom}
+                          categorie={p.categorie}
+                          size={36}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-text-primary truncate">
@@ -267,7 +271,7 @@ export default function V2TransfertPage() {
 
       {/* QUANTITÉ + PHOTO */}
       {produit && (
-        <section className="px-5 mt-6 space-y-4 pb-32">
+        <section className="px-5 mt-6 space-y-4 pb-cta-only">
           <div>
             <p className="label-caps text-text-tertiary mb-2">Quantité à transférer</p>
             <input
