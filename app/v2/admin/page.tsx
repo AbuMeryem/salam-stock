@@ -277,7 +277,7 @@ export default function V2AdminDashboardPage() {
           {/* CANAUX D'ALERTE — Push + Email recap */}
           <section className="px-5 mt-5 grid grid-cols-1 gap-3">
             <PushNotifCard employeId={employe?.id ?? null} />
-            <EmailRecapCard defaultTo="ceo@hamy.studio" />
+            <EmailRecapCard defaultTo="dadibelhamiti7@gmail.com" />
           </section>
 
           {/* DEPOT GRID */}
