@@ -190,18 +190,46 @@ export default function V2ReceptionPage() {
   }
 
   async function finalize() {
-    if (!receptionId || scans.length === 0) {
-      toast.error("Aucun produit scanné");
+    if (!receptionId) {
+      toast.error("Réception non initialisée");
       return;
+    }
+    const isEmpty = scans.length === 0;
+    if (isEmpty) {
+      const ok =
+        typeof window !== "undefined" &&
+        window.confirm(
+          "Aucun produit scanné. Valider quand même une réception vide ?\n\n" +
+            "Cela enregistrera un bon de livraison fournisseur sans contenu — utile pour signaler une livraison incomplète. Une alerte sera levée sur le dashboard admin."
+        );
+      if (!ok) return;
     }
     setSubmitting(true);
     try {
-      await validateReception(receptionId);
-      toast.success("Réception validée. Stock mis à jour.");
+      await validateReception(receptionId, { vide: isEmpty });
+      if (isEmpty) {
+        await fetch("/api/notify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            kind: "reception_vide",
+            payload: {
+              reception_id: receptionId,
+              depot: depot?.nom,
+              employe: `${employe?.prenom} ${employe?.nom}`,
+              fournisseur: fournisseur || "(non renseigné)",
+              numero_bl: numeroBl || "(non renseigné)",
+            },
+          }),
+        }).catch(() => {});
+        toast.warning("Réception vide enregistrée. Otmane notifié.");
+      } else {
+        toast.success("Réception validée. Stock mis à jour.");
+      }
       router.replace("/v2");
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de la validation");
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la validation");
     } finally {
       setSubmitting(false);
     }
@@ -429,15 +457,25 @@ export default function V2ReceptionPage() {
             <div className="mx-auto max-w-[460px] px-4 pt-3 pb-3 pointer-events-auto">
               <button
                 onClick={finalize}
-                disabled={scans.length === 0 || submitting}
-                className="w-full bg-primary text-white rounded-[22px] px-5 py-4 flex items-center justify-between shadow-card-lg disabled:opacity-50"
+                disabled={submitting}
+                className={`w-full rounded-[22px] px-5 py-4 flex items-center justify-between shadow-card-lg disabled:opacity-50 transition-colors ${
+                  scans.length === 0
+                    ? "bg-warning text-white"
+                    : "bg-primary text-white"
+                }`}
               >
                 <div className="text-left">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
-                    {submitting ? "Validation…" : "Valider la réception"}
+                    {submitting
+                      ? "Validation…"
+                      : scans.length === 0
+                        ? "Valider sans scan"
+                        : "Valider la réception"}
                   </p>
                   <p className="text-[15px] font-extrabold mt-0.5">
-                    {scans.length} ligne · {totalUnits} unités
+                    {scans.length === 0
+                      ? "Aucun produit · confirmation requise"
+                      : `${scans.length} ligne${scans.length > 1 ? "s" : ""} · ${totalUnits} unité${totalUnits > 1 ? "s" : ""}`}
                   </p>
                 </div>
                 <span className="bg-white/15 backdrop-blur-sm rounded-full p-2.5">

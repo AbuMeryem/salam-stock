@@ -231,6 +231,7 @@ export async function createReception(input: {
     numero_bl: input.numero_bl ?? null,
     photo_url: input.photo_url,
     statut: "en_cours",
+    reception_vide: false,
     created_at: new Date().toISOString(),
   };
   if (sb) {

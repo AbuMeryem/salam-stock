@@ -136,6 +136,11 @@ export default function V2AdminDashboardPage() {
     [recentSorties]
   );
 
+  const emptyReceptions = useMemo(
+    () => recentReceptions.filter((r) => r.reception_vide === true),
+    [recentReceptions]
+  );
+
   return (
     <V2Shell>
       <header className="px-5 pt-5">
@@ -203,6 +208,38 @@ export default function V2AdminDashboardPage() {
               </div>
             ))}
           </section>
+
+          {/* EMPTY RECEPTIONS — workflow safety net */}
+          {emptyReceptions.length > 0 && (
+            <section className="px-5 mt-7">
+              <p className="label-caps text-warning mb-3 inline-flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Réceptions vides à vérifier
+              </p>
+              <div className="space-y-2">
+                {emptyReceptions.map((r) => {
+                  const d = depots.find((x) => x.id === r.depot_id);
+                  const e = employes.find((x) => x.id === r.employe_id);
+                  return (
+                    <div
+                      key={r.id}
+                      className="bg-warning-soft border border-warning/30 rounded-2xl p-3 flex items-center gap-3"
+                    >
+                      <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-warning">
+                          BL vide · {r.fournisseur ?? "Fournisseur ?"} → {d?.nom ?? "?"}
+                        </p>
+                        <p className="text-[11px] text-text-secondary line-clamp-1">
+                          Validé par {e?.prenom ?? "?"} {e?.nom ?? ""} sans aucun scan — vérifier la livraison.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* IA FLAGS */}
           {flaggedSorties.length > 0 && (
