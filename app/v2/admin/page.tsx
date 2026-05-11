@@ -200,14 +200,30 @@ export default function V2AdminDashboardPage() {
                     ease: [0.22, 0.61, 0.36, 1],
                     delay: idx * 0.05,
                   }}
-                  className="bg-white border border-rule rounded-[20px] p-4 shadow-card"
+                  className="bg-white border border-rule rounded-[20px] shadow-card overflow-hidden"
                 >
+                  {/* C2-F — ruban couleur identifiant le dépôt */}
+                  <div
+                    aria-hidden
+                    className="h-1.5 w-full"
+                    style={{
+                      background:
+                        s.depot.nom === "Particulier"
+                          ? "#C9A227"
+                          : s.depot.nom === "Professionnel"
+                            ? "#0E3B2E"
+                            : "#0A2A20",
+                    }}
+                  />
+                  <div className="p-4">
                   <div className="flex items-center gap-3">
                     <span
                       className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         isEntrepot
-                          ? "bg-gold-soft text-primary-dark"
-                          : "bg-cream text-primary"
+                          ? "bg-[#0A2A20] text-[#C9A227]"
+                          : s.depot.nom === "Particulier"
+                            ? "bg-[#FAEDC5] text-[#0E3B2E]"
+                            : "bg-[#0E3B2E] text-white"
                       }`}
                     >
                       <Building2 className="w-4 h-4" strokeWidth={2.2} />
@@ -222,7 +238,12 @@ export default function V2AdminDashboardPage() {
                           : "Point de vente"}
                       </p>
                     </div>
-                    {s.ecartsCount > 0 && (
+                    {isEntrepot && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-[#0A2A20] text-[#C9A227] rounded-full px-2 py-0.5">
+                        Back-office
+                      </span>
+                    )}
+                    {s.ecartsCount > 0 && !isEntrepot && (
                       <span className="badge badge-warning text-[10px]">
                         <AlertTriangle className="w-3 h-3" />
                         {s.ecartsCount} écart{s.ecartsCount > 1 ? "s" : ""}
@@ -235,12 +256,14 @@ export default function V2AdminDashboardPage() {
                     <Stat
                       label="Valeur"
                       value={`${Math.round(s.totalValue).toLocaleString("fr-FR")} €`}
+                      gold
                     />
                     <Stat
                       label="Mouvts"
                       value={`${s.receptionsToday}↓ ${s.sortiesToday}↑`}
                       hint="24h"
                     />
+                  </div>
                   </div>
                 </motion.div>
               );
@@ -420,10 +443,12 @@ function Stat({
   label,
   value,
   hint,
+  gold,
 }: {
   label: string;
   value: string | number;
   hint?: string;
+  gold?: boolean;
 }) {
   return (
     <div>
@@ -435,7 +460,7 @@ function Stat({
           </span>
         )}
       </p>
-      <p className="text-[15px] font-extrabold text-text-primary mt-1 tabular tracking-tight">
+      <p className={`text-[15px] font-extrabold mt-1 tabular tracking-tight ${gold ? "text-[#C9A227]" : "text-text-primary"}`}>
         {value}
       </p>
     </div>
