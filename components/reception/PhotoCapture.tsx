@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Camera, AlertTriangle, RefreshCw, Check } from "lucide-react";
+import { X, Camera, AlertTriangle, RefreshCw, Check, ImageUp } from "lucide-react";
 
 interface PhotoCaptureProps {
   open: boolean;
@@ -12,8 +12,19 @@ interface PhotoCaptureProps {
 export function PhotoCapture({ open, onClose, onCapture }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+
+  function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -111,10 +122,23 @@ export function PhotoCapture({ open, onClose, onCapture }: PhotoCaptureProps) {
             <p className="font-semibold text-lg">Caméra inaccessible</p>
             <p className="text-sm text-white/70 mt-2">{error}</p>
             <p className="text-xs text-white/50 mt-3">
-              Autorise l&apos;accès à la caméra pour photographier la livraison.
+              Autorise l&apos;accès à la caméra ou choisis une photo dans la galerie.
             </p>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-5 inline-flex items-center gap-2 bg-gold-bright text-primary-dark rounded-full px-4 py-2.5 font-bold text-sm"
+            >
+              <ImageUp className="w-4 h-4" /> Choisir une photo
+            </button>
           </div>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFilePick}
+        />
       </div>
 
       <div className="px-5 pb-8 pt-5 flex items-center justify-center gap-6">

@@ -44,6 +44,7 @@ const config: Config = {
           light: "var(--border-light)",
           medium: "var(--border-medium)",
         },
+        rule: "var(--border-light)",
       },
       fontFamily: {
         sans: ["var(--font-jakarta)", "system-ui", "sans-serif"],

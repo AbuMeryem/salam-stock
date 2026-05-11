@@ -32,7 +32,7 @@ export interface Product {
   stock_theoretical: number;
   stock_min: number;
   unit: Unit;
-  image_url: string;
+  image_url: string | null;
   last_received_at: string | null;
   last_inventoried_at?: string | null;
 }
