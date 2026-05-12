@@ -9,6 +9,8 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  Download,
+  FileText,
   ImagePlus,
   Loader2,
   PackageCheck,
@@ -39,12 +41,14 @@ interface BdlLigne {
 interface BdlDetail {
   id: string;
   numero_bdl: string;
+  numero_bdl_fournisseur: string | null;
   fournisseur_id: string | null;
   depot_destination_id: string | null;
   date_livraison_prevue: string;
   statut: "prevue" | "en_cours" | "receptionnee" | "litige";
   photo_palette_url_1: string | null;
   photo_palette_url_2: string | null;
+  photo_bdl_url: string | null;
   notes: string | null;
   fournisseurs: { id: string; nom: string } | null;
   depots: { id: string; nom: string } | null;
@@ -61,7 +65,9 @@ export default function BdlReceptionPage() {
   const [loading, setLoading] = useState(true);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
-  const [photoSlot, setPhotoSlot] = useState<1 | 2 | null>(null);
+  const [photoSlot, setPhotoSlot] = useState<1 | 2 | 3 | null>(null);
+  const [editingNumFourn, setEditingNumFourn] = useState(false);
+  const [numFournDraft, setNumFournDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Surplus modal state — EAN connu du catalogue mais hors BDL
@@ -70,6 +76,9 @@ export default function BdlReceptionPage() {
     | null
   >(null);
   const [surplusQty, setSurplusQty] = useState(1);
+  const [surplusPhoto, setSurplusPhoto] = useState<string | null>(null);
+  const [surplusPhotoOpen, setSurplusPhotoOpen] = useState(false);
+  const [adminIds, setAdminIds] = useState<string[]>([]);
 
   // Create-product modal state — EAN totalement inconnu (pas en catalogue)
   const [createModal, setCreateModal] = useState<{ code: string } | null>(null);
@@ -96,7 +105,7 @@ export default function BdlReceptionPage() {
     const { data, error } = await sb
       .from("bons_de_livraison")
       .select(
-        `id, numero_bdl, fournisseur_id, depot_destination_id, date_livraison_prevue, statut, photo_palette_url_1, photo_palette_url_2, notes,
+        `id, numero_bdl, numero_bdl_fournisseur, fournisseur_id, depot_destination_id, date_livraison_prevue, statut, photo_palette_url_1, photo_palette_url_2, photo_bdl_url, notes,
          fournisseurs (id, nom),
          depots (id, nom),
          bons_de_livraison_lignes (
@@ -127,6 +136,30 @@ export default function BdlReceptionPage() {
     void fetchBdl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bdlId]);
+
+  // Récupère les IDs admins (Otmane + Ahmed) pour push surplus.
+  useEffect(() => {
+    void (async () => {
+      const sb = supabase();
+      if (!sb) return;
+      const { data } = await sb
+        .from("employes")
+        .select("id, role, prenom")
+        .eq("is_active", true);
+      const ids = ((data ?? []) as Array<{
+        id: string;
+        role: string;
+        prenom: string | null;
+      }>)
+        .filter(
+          (e) =>
+            e.role === "admin" ||
+            ["Otmane", "Ahmed"].includes(e.prenom ?? "")
+        )
+        .map((e) => e.id);
+      setAdminIds(ids);
+    })().catch((e) => console.warn("[adminIds] fail:", e));
+  }, []);
 
   // ─── KPI dérivés ───────────────────────────────────────────────
   const progression = useMemo(() => {
@@ -324,15 +357,17 @@ export default function BdlReceptionPage() {
     setSurplusModal(null);
   }
 
-  // ─── Photo palette upload ──────────────────────────────────────
+  // ─── Photo upload (palette x2 + BDL papier) ───────────────────
   async function handlePhotoCapture(dataUrl: string) {
     if (!bdl || photoSlot === null) return;
     const sb = supabase();
     if (!sb) return;
     const field =
-      photoSlot === 1 ? "photo_palette_url_1" : "photo_palette_url_2";
-    // Note: pour la démo on stocke directement la data URL (pas Storage).
-    // Upload Storage est trop fragile en démo et le résultat visuel est identique.
+      photoSlot === 1
+        ? "photo_palette_url_1"
+        : photoSlot === 2
+          ? "photo_palette_url_2"
+          : "photo_bdl_url";
     const { error } = await sb
       .from("bons_de_livraison")
       .update({ [field]: dataUrl })
@@ -341,9 +376,32 @@ export default function BdlReceptionPage() {
       toast.error(error.message);
       return;
     }
-    toast.success(`Photo palette ${photoSlot} enregistrée`);
+    toast.success(
+      photoSlot === 3
+        ? "Photo du BDL papier enregistrée"
+        : `Photo palette ${photoSlot} enregistrée`
+    );
     setPhotoOpen(false);
     setPhotoSlot(null);
+    void fetchBdl();
+  }
+
+  // ─── N° BDL fournisseur (édition inline) ──────────────────────
+  async function saveNumeroFournisseur() {
+    if (!bdl) return;
+    const sb = supabase();
+    if (!sb) return;
+    const trimmed = numFournDraft.trim();
+    const { error } = await sb
+      .from("bons_de_livraison")
+      .update({ numero_bdl_fournisseur: trimmed || null })
+      .eq("id", bdl.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("N° BDL fournisseur enregistré");
+    setEditingNumFourn(false);
     void fetchBdl();
   }
 
@@ -487,6 +545,56 @@ export default function BdlReceptionPage() {
                 month: "long",
               })}
             </p>
+            {/* N° BDL fournisseur — éditable inline */}
+            {editingNumFourn ? (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <input
+                  value={numFournDraft}
+                  onChange={(e) => setNumFournDraft(e.target.value)}
+                  placeholder="N° BDL fournisseur"
+                  className="flex-1 bg-white border border-rule rounded-lg px-2.5 py-1 text-[12px] font-mono"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void saveNumeroFournisseur();
+                    if (e.key === "Escape") setEditingNumFourn(false);
+                  }}
+                />
+                <button
+                  onClick={() => void saveNumeroFournisseur()}
+                  className="bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                >
+                  OK
+                </button>
+                <button
+                  onClick={() => setEditingNumFourn(false)}
+                  className="text-text-tertiary text-[11px] px-1"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setNumFournDraft(bdl.numero_bdl_fournisseur ?? "");
+                  setEditingNumFourn(true);
+                }}
+                className="inline-flex items-center gap-1.5 mt-1.5 text-[11px] font-mono"
+              >
+                {bdl.numero_bdl_fournisseur ? (
+                  <>
+                    <span className="text-text-tertiary">N° BDL fourn :</span>
+                    <span className="font-bold text-text-primary">
+                      {bdl.numero_bdl_fournisseur}
+                    </span>
+                    <span className="text-[10px] text-text-tertiary">(éditer)</span>
+                  </>
+                ) : (
+                  <span className="italic text-primary">
+                    + Saisir N° BDL fournisseur
+                  </span>
+                )}
+              </button>
+            )}
           </div>
           <span
             className={`text-[10.5px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${
@@ -612,9 +720,11 @@ export default function BdlReceptionPage() {
           })}
         </div>
 
-        {/* Photos palette */}
+        {/* Photos palette + photo BDL papier (preuve archivée) */}
         <div className="mt-6">
-          <p className="label-caps text-text-tertiary mb-2">Photos palette</p>
+          <p className="label-caps text-text-tertiary mb-2">
+            Photos palette (obligatoires)
+          </p>
           <div className="grid grid-cols-2 gap-2.5">
             {[1, 2].map((slot) => {
               const url =
@@ -649,51 +759,106 @@ export default function BdlReceptionPage() {
               );
             })}
           </div>
+
+          {/* Photo BDL papier (optionnelle, preuve en cas de litige) */}
+          <p className="label-caps text-text-tertiary mt-5 mb-2">
+            Photo du BDL papier (optionnelle)
+          </p>
+          <button
+            onClick={() => {
+              setPhotoSlot(3);
+              setPhotoOpen(true);
+            }}
+            className="relative w-full aspect-[16/6] rounded-2xl border-2 border-dashed border-text-tertiary/30 overflow-hidden bg-white active:scale-[0.99] transition-transform"
+          >
+            {bdl.photo_bdl_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bdl.photo_bdl_url}
+                alt="BDL papier"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center gap-2 text-text-secondary">
+                <ImagePlus className="w-4 h-4" />
+                <span className="text-[12px] font-bold">
+                  Scanner ou photographier le BDL du fournisseur
+                </span>
+              </div>
+            )}
+          </button>
         </div>
       </section>
 
-      {/* Floating actions */}
+      {/* Floating actions — diffèrent selon le statut */}
       <div className="fixed bottom-0 inset-x-0 z-30 pb-safe pointer-events-none">
         <div className="mx-auto max-w-[460px] px-4 pt-3 pb-3 pointer-events-auto space-y-2.5">
-          <button
-            onClick={() => setScannerOpen(true)}
-            className="w-full bg-primary text-white rounded-[22px] py-4 px-5 flex items-center justify-between shadow-card-lg active:scale-[0.99]"
-          >
-            <span className="flex items-center gap-3">
-              <span className="w-11 h-11 rounded-2xl bg-gold/20 text-gold flex items-center justify-center">
-                <ScanBarcode className="w-6 h-6" />
-              </span>
-              <span className="text-left">
-                <span className="block label-caps text-gold">SCANNER</span>
-                <span className="block font-bold text-[15px]">
-                  Scanner produit suivant
+          {bdl.statut === "receptionnee" ? (
+            <>
+              {/* BR PDF — disponible une fois la réception validée */}
+              <a
+                href={`/api/cashbox/bon-reception-pdf?bdl_id=${bdl.id}`}
+                target="_blank"
+                rel="noopener"
+                className="w-full bg-primary text-white rounded-[22px] py-4 px-5 flex items-center justify-between shadow-card-lg active:scale-[0.99]"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="w-11 h-11 rounded-2xl bg-gold/20 text-gold flex items-center justify-center">
+                    <FileText className="w-5 h-5" />
+                  </span>
+                  <span className="text-left">
+                    <span className="block label-caps text-gold">BON DE RÉCEPTION</span>
+                    <span className="block font-bold text-[15px]">
+                      Télécharger le BR PDF
+                    </span>
+                  </span>
                 </span>
-              </span>
-            </span>
-            <PackagePlus className="w-5 h-5 text-gold" />
-          </button>
+                <Download className="w-5 h-5 text-gold" />
+              </a>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setScannerOpen(true)}
+                className="w-full bg-primary text-white rounded-[22px] py-4 px-5 flex items-center justify-between shadow-card-lg active:scale-[0.99]"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="w-11 h-11 rounded-2xl bg-gold/20 text-gold flex items-center justify-center">
+                    <ScanBarcode className="w-6 h-6" />
+                  </span>
+                  <span className="text-left">
+                    <span className="block label-caps text-gold">SCANNER</span>
+                    <span className="block font-bold text-[15px]">
+                      Scanner produit suivant
+                    </span>
+                  </span>
+                </span>
+                <PackagePlus className="w-5 h-5 text-gold" />
+              </button>
 
-          <button
-            onClick={finalize}
-            disabled={submitting}
-            className={`w-full rounded-[20px] py-3.5 px-4 flex items-center justify-between transition-colors disabled:opacity-50 ${
-              allRecu
-                ? "bg-success text-white shadow-card"
-                : "bg-white border border-rule text-text-primary"
-            }`}
-          >
-            <span className="text-left">
-              <span className="block text-[10px] font-bold uppercase tracking-[0.12em]">
-                {submitting ? "Validation…" : "Valider la réception"}
-              </span>
-              <span className="block text-[13px] font-extrabold mt-0.5">
-                {allRecu
-                  ? "Toutes les lignes traitées"
-                  : `${progression.scanned}/${progression.total} unités traitées`}
-              </span>
-            </span>
-            <PackageCheck className="w-5 h-5" />
-          </button>
+              <button
+                onClick={finalize}
+                disabled={submitting}
+                className={`w-full rounded-[20px] py-3.5 px-4 flex items-center justify-between transition-colors disabled:opacity-50 ${
+                  allRecu
+                    ? "bg-success text-white shadow-card"
+                    : "bg-white border border-rule text-text-primary"
+                }`}
+              >
+                <span className="text-left">
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.12em]">
+                    {submitting ? "Validation…" : "Valider la réception"}
+                  </span>
+                  <span className="block text-[13px] font-extrabold mt-0.5">
+                    {allRecu
+                      ? "Toutes les lignes traitées · BR PDF généré ensuite"
+                      : `${progression.scanned}/${progression.total} unités traitées`}
+                  </span>
+                </span>
+                <PackageCheck className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
