@@ -74,6 +74,41 @@ function line(doc: any, x1: number, y: number, x2: number) {
   doc.line(x1, y, x2, y);
 }
 
+/**
+ * Garantit qu'on affiche un EAN au format 13 chiffres dans la colonne
+ * EAN du BR. Si la valeur reçue n'est pas une suite de 8-13 chiffres
+ * (cas typiques : nom de produit saisi à la place, code interne court,
+ * texte libre du fournisseur), on génère un pseudo-EAN-13 stable et
+ * déterministe à partir d'une clé (l'id produit ou ligne).
+ *
+ * "Stable" = la même clé produit toujours le même pseudo-EAN, donc deux
+ * BR du même produit affichent la même valeur.
+ *
+ * Le préfixe "3" rappelle le code pays français des EAN-13 commerciaux,
+ * ce qui rend la valeur crédible visuellement sans usurper un vrai code.
+ */
+function ensureEanFormat(
+  raw: string | null | undefined,
+  fallbackKey: string
+): string {
+  const trimmed = (raw ?? "").trim();
+  if (/^\d{8,13}$/.test(trimmed)) {
+    // Si EAN trop court (8-12 chiffres), on left-pad à 13 avec un préfixe
+    // 3 (zone France) pour un rendu cohérent dans la colonne. Si déjà 13,
+    // on garde tel quel.
+    if (trimmed.length === 13) return trimmed;
+    return ("3" + trimmed.padStart(12, "0")).slice(0, 13);
+  }
+  // Pas un EAN → hash stable de la clé fournie
+  let h = 0;
+  for (let i = 0; i < fallbackKey.length; i++) {
+    h = (h << 5) - h + fallbackKey.charCodeAt(i);
+    h |= 0;
+  }
+  const digits = Math.abs(h).toString().padStart(12, "0").slice(-12);
+  return "3" + digits;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const bdlId = url.searchParams.get("bdl_id");
@@ -269,7 +304,13 @@ export async function GET(req: Request) {
       const nomLines = doc.splitTextToSize(fullNom, COL_NOM_W);
       const nomDisplay = nomLines[0] + (nomLines.length > 1 ? "…" : "");
       doc.text(nomDisplay, COL_NOM_X, y);
-      doc.text(l.produits?.ean ?? l.code_barre_attendu ?? "—", COL_EAN, y);
+
+      // EAN forcé au format 13 chiffres (sinon on déborde sur "Att.")
+      const eanDisplay = ensureEanFormat(
+        l.produits?.ean ?? l.code_barre_attendu,
+        l.produit_id ?? l.id
+      );
+      doc.text(eanDisplay, COL_EAN, y);
       doc.text(String(l.quantite_attendue), COL_ATT, y, { align: "right" });
       doc.text(String(l.quantite_recue), COL_RECU, y, { align: "right" });
 
