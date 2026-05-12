@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { supabase } from "@/lib/supabase";
@@ -427,12 +428,7 @@ export default function V2ReceptionPage() {
     <V2Shell hideNav>
       <PageAccentStripe accent="sapin" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="label-caps text-primary mt-3">Réception fournisseur</p>
         <h1 className="h1 text-text-primary mt-1">
           {step === "intake"
@@ -530,9 +526,13 @@ export default function V2ReceptionPage() {
         <section className="px-5 mt-6 space-y-4">
           <button
             onClick={() => setShowLibre(false)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-2"
+            type="button"
+            className="inline-flex items-center gap-1.5 h-10 pl-2.5 pr-4 mb-2 rounded-full bg-white border border-rule shadow-card text-[13px] font-bold text-primary active:scale-[0.97] transition-transform"
           >
-            <ArrowLeft className="w-4 h-4" /> Retour aux BDL
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-cream">
+              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2.4} />
+            </span>
+            Retour aux BDL
           </button>
           <Field label="Fournisseur (optionnel)">
             <input

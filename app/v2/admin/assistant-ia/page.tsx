@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 
 interface ChatMsg {
@@ -102,12 +103,7 @@ export default function AssistantIAPage() {
     <V2Shell hideNav>
       <PageAccentStripe accent="sapin-or" />
       <header className="px-5 pt-7 pb-3 border-b border-rule">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <div className="mt-2 flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-primary-dark text-gold flex items-center justify-center shadow-card">
             <Sparkles className="w-5 h-5" />

@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
@@ -163,12 +164,7 @@ export default function V2InventairePage() {
     <V2Shell hideNav>
       <PageAccentStripe accent="or" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="label-caps text-primary mt-3">Inventaire tournant</p>
         <h1 className="h1 text-text-primary mt-1">
           {rows.length} produit{rows.length > 1 ? "s" : ""} à compter

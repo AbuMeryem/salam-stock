@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { supabase } from "@/lib/supabase";
 import { useV2 } from "@/lib/v2-store";
@@ -127,12 +128,7 @@ export default function AlertesSurplusPage() {
     <V2Shell hideNav>
       <PageAccentStripe accent="or" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="section-eyebrow mt-3">
           <AlertTriangle className="w-3 h-3" />
           Surplus fournisseurs

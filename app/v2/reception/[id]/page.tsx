@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
 import { PhotoCapture } from "@/components/reception/PhotoCapture";
@@ -367,12 +368,7 @@ export default function BdlReceptionPage() {
 
       {/* Header sticky */}
       <header className="px-5 pt-7 pb-3 sticky top-0 z-30 bg-cream/95 backdrop-blur-md border-b border-rule">
-        <button
-          onClick={() => router.replace("/v2/reception")}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton href="/v2/reception" />
         <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="label-caps text-primary">BDL · {bdl.fournisseurs?.nom ?? "—"}</p>

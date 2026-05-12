@@ -9,6 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { listCommandesDrive, listLignesPourCommande, listDepots } from "@/lib/db";
 import type {
@@ -61,12 +62,7 @@ export default function V2PreparationPage() {
     <V2Shell>
       <PageAccentStripe accent="sapin-or" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="label-caps text-primary mt-3">Préparation drive</p>
         <h1 className="h1 text-text-primary mt-1">
           {commandes.length} commande{commandes.length > 1 ? "s" : ""} à préparer

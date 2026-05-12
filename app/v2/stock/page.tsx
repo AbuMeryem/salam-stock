@@ -2,25 +2,52 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, Search } from "lucide-react";
+import { ArrowLeft, Lock, Package, Pencil, Search, Unlock } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
+import { StockEditModal } from "@/components/v2/StockEditModal";
 import { useV2 } from "@/lib/v2-store";
 import { listProduitsInDepot } from "@/lib/db";
+import {
+  canEditStock,
+  listStockEditWindows,
+  type StockEditWindow,
+} from "@/lib/db/stock-edit";
 import type { ProduitInDepot } from "@/lib/types/db";
 
 export default function V2StockPage() {
   const router = useRouter();
   const depot = useV2((s) => s.currentDepot);
+  const employe = useV2((s) => s.currentEmploye);
   const [items, setItems] = useState<ProduitInDepot[]>([]);
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<string>("Tout");
+  const [windows, setWindows] = useState<StockEditWindow[]>([]);
+  const [editing, setEditing] = useState<ProduitInDepot | null>(null);
+
+  async function reload() {
+    if (!depot) return;
+    const [stock, win] = await Promise.all([
+      listProduitsInDepot(depot.id),
+      listStockEditWindows(),
+    ]);
+    setItems(stock);
+    setWindows(win);
+  }
 
   useEffect(() => {
-    if (!depot) return;
-    void listProduitsInDepot(depot.id).then(setItems);
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depot]);
+
+  const editAllowed = depot
+    ? canEditStock(employe?.role, depot.id, windows)
+    : false;
+  const windowOpen = depot
+    ? Boolean(windows.find((w) => w.depot_id === depot.id)?.is_open)
+    : false;
 
   const cats = useMemo(() => {
     const s = new Set<string>();
@@ -47,12 +74,7 @@ export default function V2StockPage() {
     <V2Shell>
       <PageAccentStripe accent="fonce" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="label-caps text-primary mt-3">Stock</p>
         <h1 className="h1 text-text-primary mt-1">
           {items.length} produit{items.length > 1 ? "s" : ""}
@@ -60,6 +82,30 @@ export default function V2StockPage() {
         <p className="body-md text-text-secondary mt-1">
           Catalogue du dépôt {depot?.nom}.
         </p>
+        {/* Bandeau accès édition stock */}
+        <div
+          className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold ${
+            editAllowed
+              ? "bg-success-soft text-success"
+              : "bg-cream text-text-secondary border border-rule"
+          }`}
+        >
+          {editAllowed ? (
+            <>
+              <Unlock className="w-3 h-3" />
+              {employe?.role === "admin"
+                ? "Édition stock active (admin)"
+                : windowOpen
+                  ? "Inventaire en cours — édition autorisée"
+                  : "Édition autorisée"}
+            </>
+          ) : (
+            <>
+              <Lock className="w-3 h-3" />
+              Lecture seule — admin ou inventaire requis
+            </>
+          )}
+        </div>
       </header>
 
       <section className="px-5 mt-4">
@@ -106,6 +152,15 @@ export default function V2StockPage() {
                 <Package className="w-3 h-3" />
                 {p.quantite}
               </span>
+              {editAllowed && (
+                <button
+                  onClick={() => setEditing(p)}
+                  className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shadow-card-lg active:scale-95"
+                  aria-label="Modifier le stock"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="p-3">
               <p className="text-[13px] font-bold text-text-primary line-clamp-2 min-h-[34px]">
@@ -132,6 +187,22 @@ export default function V2StockPage() {
           Aucun produit ne correspond à la recherche.
         </div>
       )}
+
+      <StockEditModal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => void reload()}
+        produit={
+          editing
+            ? { id: editing.id, nom: editing.nom, categorie: editing.categorie }
+            : null
+        }
+        depotId={depot?.id ?? ""}
+        depotNom={depot?.nom ?? ""}
+        quantiteActuelle={editing?.quantite ?? 0}
+        employeId={employe?.id ?? ""}
+        duringInventaire={windowOpen}
+      />
     </V2Shell>
   );
 }

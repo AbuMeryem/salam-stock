@@ -14,11 +14,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { RevenueChart, type RevenueDataPoint } from "@/components/v2/RevenueChart";
 import { DriveDashboardSection } from "@/components/v2/DriveDashboardSection";
 import { PushNotifCard } from "@/components/v2/PushNotifCard";
 import { EmailRecapCard } from "@/components/v2/EmailRecapCard";
+import { StockEditWindowCard } from "@/components/v2/StockEditWindowCard";
 import { WhatsAppRecapCard } from "@/components/v2/WhatsAppRecapCard";
 import { useV2 } from "@/lib/v2-store";
 import {
@@ -158,12 +160,7 @@ export default function V2AdminDashboardPage() {
     <V2Shell>
       <PageAccentStripe accent="or-sapin" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="label-caps text-primary mt-3">Dashboard global</p>
         <h1 className="h1 text-text-primary mt-1">Bonjour {employe?.prenom}</h1>
         <p className="body-md text-text-secondary mt-1">
@@ -278,6 +275,10 @@ export default function V2AdminDashboardPage() {
           <section className="px-5 mt-5 grid grid-cols-1 gap-3">
             <PushNotifCard employeId={employe?.id ?? null} />
             <EmailRecapCard defaultTo="ceo@hamy.studio" />
+            <StockEditWindowCard
+              employeId={employe?.id ?? null}
+              employeRole={employe?.role}
+            />
           </section>
 
           {/* DEPOT GRID */}

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import type { MonthlyReport } from "@/lib/cashbox/monthly-report";
 import { downloadOrShare } from "@/lib/download-helper";
 import { DownloadCompleteBar } from "@/components/v2/DownloadCompleteBar";
@@ -110,9 +111,7 @@ export default function RapportMensuelPage() {
   return (
     <V2Shell hideNav>
       <header className="px-5 pt-7">
-        <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="section-eyebrow mt-3"><FileText className="w-3 h-3" />Rapport mensuel consolidé</p>
         <h1 className="h1 text-text-primary mt-1">{monthLabel(mois).replace(/^./, (c) => c.toUpperCase())}</h1>
         <p className="body-md text-text-secondary mt-1">
