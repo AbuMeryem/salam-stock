@@ -48,6 +48,8 @@ export interface Produit {
   description: string | null;
   requires_barcode_print: boolean;
   est_traiteur: boolean;
+  /** Type de client cible — détermine le badge sur les commandes Drive. */
+  client_type?: "particulier" | "pro" | "traiteur" | null;
   created_at: string;
   updated_at: string;
 }

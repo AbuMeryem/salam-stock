@@ -12,6 +12,7 @@ import { V2Shell } from "@/components/v2/V2Shell";
 import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { PriceTag } from "@/components/v2/PriceTag";
+import { ClientTypeBadgeGroup, type ClientType } from "@/components/v2/ClientTypeBadge";
 import { listCommandesDrive, listLignesPourCommande, listDepots } from "@/lib/db";
 import type {
   CommandeDrive,
@@ -111,17 +112,15 @@ export default function V2PreparationPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-3 text-[11px] text-text-tertiary flex-wrap">
-                  {Array.from(byZone.keys()).map((z) => {
-                    return (
-                      <span
-                        key={z}
-                        className="inline-flex items-center gap-1 bg-cream px-2 py-1 rounded-full"
-                      >
-                        <span aria-hidden>{ZONE_EMOJI[z as ZonePrep]}</span>
-                        {ZONE_LABEL[z as ZonePrep]} · {byZone.get(z)!.length}
-                      </span>
-                    );
-                  })}
+                  <ClientTypeBadgeGroup
+                    size="sm"
+                    types={Array.from(byZone.keys()).map((z) => {
+                      // Mapping zone_preparation → client_type
+                      if (z === "professionnel") return "pro" as ClientType;
+                      if (z === "traiteur") return "traiteur" as ClientType;
+                      return "particulier" as ClientType;
+                    })}
+                  />
                 </div>
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-rule">
                   <p className="text-xs text-text-secondary inline-flex items-center gap-1">
