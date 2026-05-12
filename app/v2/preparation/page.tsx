@@ -104,13 +104,17 @@ export default function V2PreparationKanbanPage() {
   const [isLive, setIsLive] = useState(false);
 
   async function reload() {
-    // Sync orders Drive → commandes_drive (pont entre les 2 projets
-    // Supabase distincts). Bloquant pour avoir les dernières commandes
-    // payées avant d'afficher le Kanban.
-    try {
-      await fetch("/api/sync/drive-pull", { method: "POST" });
-    } catch {
-      /* échec sync → on continue avec ce qui est déjà en local */
+    // NOTE : /api/sync/drive-pull existe pour syncer les orders du
+    // projet Supabase Drive vers Stock, mais nécessite la service-role
+    // du projet Drive (RLS bloque l'anon). Tant que cette clé n'est pas
+    // configurée en env Vercel (DRIVE_SUPABASE_SERVICE_ROLE_KEY), on ne
+    // l'appelle pas — ça reviendrait à un round-trip réseau sans effet.
+    if (process.env.NEXT_PUBLIC_HAS_DRIVE_SYNC === "1") {
+      try {
+        await fetch("/api/sync/drive-pull", { method: "POST" });
+      } catch {
+        /* échec sync → on continue avec ce qui est déjà en local */
+      }
     }
 
     const cmds = await listCommandesDrive();
