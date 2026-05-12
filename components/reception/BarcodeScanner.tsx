@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Camera,
   Flashlight,
+  ImagePlus,
   RefreshCw,
   ScanBarcode,
   X,
@@ -70,17 +71,97 @@ export function BarcodeScanner({
   );
   const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<"native" | "html5" | null>(null);
-  const [zoom, setZoom] = useState(2);
+  const [zoom, setZoom] = useState(3);
   const [zoomCaps, setZoomCaps] = useState<{ min: number; max: number } | null>(
     null
   );
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [manualInput, setManualInput] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
+
+  /** Décode une image (File) via BarcodeDetector natif si dispo, sinon
+   *  ZXing browser. Utilisé par le bouton "Photo Caméra iOS" qui ouvre
+   *  l'app Caméra Apple native (focus + zoom parfaits, contourne tous
+   *  les bugs WebRTC). */
+  async function decodeImageFile(file: File): Promise<string | null> {
+    const Detector = getNativeDetector();
+    const bitmap = await createImageBitmap(file).catch(() => null);
+    if (!bitmap) return null;
+
+    if (Detector) {
+      try {
+        const det = new Detector({
+          formats: [
+            "ean_13",
+            "ean_8",
+            "upc_a",
+            "upc_e",
+            "code_128",
+            "code_39",
+            "itf",
+          ],
+        });
+        // BarcodeDetector accepte ImageBitmap
+        const codes = await (det as unknown as {
+          detect(b: ImageBitmap): Promise<Array<{ rawValue: string }>>;
+        }).detect(bitmap);
+        if (codes && codes.length > 0 && codes[0].rawValue) {
+          return String(codes[0].rawValue);
+        }
+      } catch (e) {
+        console.warn("[Scanner] BarcodeDetector image fail, fallback ZXing:", e);
+      }
+    }
+    // Fallback ZXing
+    try {
+      const { BrowserMultiFormatReader } = await import("@zxing/browser");
+      const reader = new BrowserMultiFormatReader();
+      const url = URL.createObjectURL(file);
+      try {
+        const result = await reader.decodeFromImageUrl(url);
+        return result?.getText() ?? null;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      console.warn("[Scanner] ZXing image fail:", e);
+      return null;
+    }
+  }
+
+  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset pour permettre re-pick same file
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const code = await decodeImageFile(file);
+      if (code) {
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+          navigator.vibrate?.(40);
+        }
+        onScanRef.current(code.trim());
+        void stopAll();
+      } else {
+        setError(
+          "Aucun code-barre détecté sur la photo. Reprends en cadrant le code bien droit, le plus près possible."
+        );
+        setPhase("error");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError("Décodage échoué : " + msg);
+      setPhase("error");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   function fireScan(code: string) {
     if (stoppedRef.current) return;
@@ -451,9 +532,37 @@ export function BarcodeScanner({
         )}
       </div>
 
-      <div className="px-5 pb-safe pt-3 bg-black/95 border-t border-white/10">
+      <div className="px-5 pb-safe pt-3 bg-black/95 border-t border-white/10 space-y-3">
+        {/* Photo Caméra iOS native — focus + zoom natif Apple, contourne
+            tous les bugs WebRTC. Si ça plante, ça plante nulle part. */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={photoBusy}
+          className="w-full bg-gold-bright text-primary-dark rounded-2xl py-3 font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {photoBusy ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Décodage en cours…
+            </>
+          ) : (
+            <>
+              <ImagePlus className="w-5 h-5" />
+              Photo via Caméra iOS native
+            </>
+          )}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => void onPhotoPicked(e)}
+          className="hidden"
+        />
+
         <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-white/60 mb-2">
-          Si vraiment ça ne lit pas — saisie manuelle
+          Ou saisie manuelle
         </p>
         <div className="flex gap-2">
           <input
