@@ -55,6 +55,22 @@ export default function V2TransfertPage() {
     });
   }, [currentDepot]);
 
+  // Directions de transfert autorisées (règle métier Salam Market) :
+  //   Particulier → Pro      (réassort comptoir pro)
+  //   Sodrune     → Pro      (livraison entrepôt vers pro)
+  //   Pro         → Particulier  (retour invendu / rotation)
+  // Toute autre combinaison est bloquée.
+  const ALLOWED_PAIRS: Record<string, string[]> = {
+    Particulier: ["Professionnel"],
+    Sodrune: ["Professionnel"],
+    Professionnel: ["Particulier"],
+  };
+  function allowedDestinations(src: Depot | null): Depot[] {
+    if (!src) return [];
+    const allowedNames = ALLOWED_PAIRS[src.nom] ?? [];
+    return depots.filter((d) => allowedNames.includes(d.nom));
+  }
+
   useEffect(() => {
     if (!produit || !source) {
       setStockSource(null);
@@ -178,7 +194,7 @@ export default function V2TransfertPage() {
           <ArrowRight className="w-5 h-5 text-text-tertiary" />
           <DepotPick
             label="Destination"
-            depots={depots.filter((d) => d.id !== source?.id)}
+            depots={allowedDestinations(source)}
             value={destination}
             onChange={setDestination}
           />

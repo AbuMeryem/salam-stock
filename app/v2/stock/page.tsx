@@ -8,6 +8,7 @@ import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { StockEditModal } from "@/components/v2/StockEditModal";
+import { PriceTag } from "@/components/v2/PriceTag";
 import { useV2 } from "@/lib/v2-store";
 import { listProduitsInDepot } from "@/lib/db";
 import {
@@ -169,14 +170,10 @@ export default function V2StockPage() {
               <p className="text-[11px] text-text-tertiary mt-0.5 truncate">
                 {p.marque}
               </p>
-              {p.prix_vente !== null && (
-                <p className="text-base font-extrabold text-primary mt-1">
-                  {new Intl.NumberFormat("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  }).format(p.prix_vente)}
-                </p>
-              )}
+              <PriceTag
+                amount={p.prix_vente}
+                className="text-base font-extrabold text-primary mt-1 block"
+              />
             </div>
           </div>
         ))}

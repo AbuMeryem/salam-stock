@@ -82,7 +82,7 @@ export function BarcodeScanner({
     "starting"
   );
   const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(4);
+  const [zoom, setZoom] = useState(2.5);
   const [zoomCaps, setZoomCaps] = useState<{ min: number; max: number } | null>(
     null
   );

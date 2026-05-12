@@ -11,6 +11,7 @@ import {
 import { V2Shell } from "@/components/v2/V2Shell";
 import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
+import { PriceTag } from "@/components/v2/PriceTag";
 import { listCommandesDrive, listLignesPourCommande, listDepots } from "@/lib/db";
 import type {
   CommandeDrive,
@@ -123,9 +124,9 @@ export default function V2PreparationPage() {
                   })}
                 </div>
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-rule">
-                  <p className="text-xs text-text-secondary">
-                    {prepares}/{totalLignes} préparés ·{" "}
-                    {formatPrice(cmd.total_ttc)}
+                  <p className="text-xs text-text-secondary inline-flex items-center gap-1">
+                    {prepares}/{totalLignes} préparés
+                    <PriceTag amount={cmd.total_ttc} decimals={0} className="ml-1" fallback={null} />
                   </p>
                   <span className="text-primary inline-flex items-center gap-1 text-sm font-bold">
                     {prepares === 0 ? "Démarrer" : "Continuer"}
