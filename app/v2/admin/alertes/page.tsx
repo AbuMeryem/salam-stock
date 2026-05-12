@@ -269,9 +269,9 @@ export default function AlertesPage() {
         />
       </section>
 
-      {/* Tabs */}
+      {/* Tabs — pas de sticky pour éviter de passer derrière le shell header */}
       <nav
-        className="px-5 mt-5 sticky top-0 z-20 bg-cream/95 backdrop-blur-md pt-2 pb-3"
+        className="px-5 mt-5 pt-2 pb-3"
         role="tablist"
       >
         <div className="flex gap-1 overflow-x-auto -mx-1 px-1 scrollbar-hide">

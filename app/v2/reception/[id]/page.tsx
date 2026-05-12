@@ -529,8 +529,10 @@ export default function BdlReceptionPage() {
     <V2Shell hideNav>
       <PageAccentStripe accent="sapin" />
 
-      {/* Header sticky */}
-      <header className="px-5 pt-7 pb-3 sticky top-0 z-30 bg-cream/95 backdrop-blur-md border-b border-rule">
+      {/* Header — sticky désactivé pour éviter collision avec V2Shell
+          sticky top-0 z-30 (le shell header reste fixe en haut, on
+          laisse celui-ci scroller naturellement). */}
+      <header className="px-5 pt-5 pb-3 bg-cream border-b border-rule">
         <BackButton href="/v2/reception" />
         <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -597,7 +599,7 @@ export default function BdlReceptionPage() {
             )}
           </div>
           <span
-            className={`text-[10.5px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${
+            className={`text-[10.5px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap ${
               bdl.statut === "receptionnee"
                 ? "bg-success-soft text-success"
                 : bdl.statut === "en_cours"
