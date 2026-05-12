@@ -51,6 +51,12 @@ const ADMIN_ENTRIES: MenuEntry[] = [
     accent: "danger",
   },
   {
+    href: "/v2/admin/activite",
+    label: "Activité complète",
+    desc: "Réceptions, sorties, transferts horodatés",
+    icon: BarChart3,
+  },
+  {
     href: "/v2/admin/alertes-surplus",
     label: "Surplus fournisseurs",
     desc: "À accepter ou refuser",

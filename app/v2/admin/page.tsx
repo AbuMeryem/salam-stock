@@ -418,15 +418,25 @@ export default function V2AdminDashboardPage() {
             </section>
           )}
 
-          {/* IA FLAGS */}
+          {/* IA FLAGS — top 4, le reste sur /v2/admin/alertes */}
           {flaggedSorties.length > 0 && (
             <section className="px-5 mt-7">
-              <p className="label-caps text-danger mb-3 inline-flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                Alertes IA — sorties à réviser
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="label-caps text-danger inline-flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Alertes IA — sorties à réviser
+                </p>
+                {flaggedSorties.length > 4 && (
+                  <a
+                    href="/v2/admin/alertes"
+                    className="text-[11px] font-bold text-danger inline-flex items-center gap-0.5"
+                  >
+                    Voir tout ({flaggedSorties.length}) →
+                  </a>
+                )}
+              </div>
               <div className="space-y-2">
-                {flaggedSorties.map((s) => (
+                {flaggedSorties.slice(0, 4).map((s) => (
                   <div
                     key={s.id}
                     className="bg-danger-soft border border-danger/20 rounded-2xl p-3 flex items-center gap-3"
@@ -443,13 +453,22 @@ export default function V2AdminDashboardPage() {
                     </div>
                   </div>
                 ))}
+                {flaggedSorties.length > 4 && (
+                  <a
+                    href="/v2/admin/alertes"
+                    className="block bg-cream border border-rule rounded-2xl p-3 text-center text-[12px] font-bold text-danger active:scale-[0.99] transition-transform"
+                  >
+                    +{flaggedSorties.length - 4} autre
+                    {flaggedSorties.length - 4 > 1 ? "s" : ""} alerte
+                    {flaggedSorties.length - 4 > 1 ? "s" : ""} — Tout consulter →
+                  </a>
+                )}
               </div>
             </section>
           )}
 
-          {/* RECENT */}
+          {/* RECENT — top 4, le reste sur /v2/admin/activite */}
           <section className="px-5 mt-7">
-            <p className="label-caps text-primary mb-3">Activité 24h</p>
             {(() => {
               const merged = [
                 ...recentReceptions.map((r) => ({
@@ -467,31 +486,55 @@ export default function V2AdminDashboardPage() {
                   date: t.created_at,
                   item: t,
                 })),
-              ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
-              if (merged.length === 0) {
-                return (
-                  <div className="bg-white border border-rule rounded-2xl p-6 text-center">
-                    <Sparkles className="w-6 h-6 text-text-tertiary mx-auto mb-2" />
-                    <p className="text-sm font-bold text-text-primary">
-                      Aucun mouvement sur les dernières 24h
-                    </p>
-                    <p className="text-xs text-text-secondary mt-1">
-                      Réceptions, sorties et transferts apparaîtront ici dès qu&apos;ils seront validés.
-                    </p>
-                  </div>
-                );
-              }
+              ].sort((a, b) => b.date.localeCompare(a.date));
+              const visible = merged.slice(0, 4);
+              const hidden = merged.length - 4;
               return (
-                <div className="bg-white border border-rule rounded-2xl divide-y divide-rule overflow-hidden">
-                  {merged.map((row, i) => (
-                    <ActivityRow
-                      key={i}
-                      row={row}
-                      depots={depots}
-                      employes={employes}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="label-caps text-primary">Activité 24h</p>
+                    {hidden > 0 && (
+                      <a
+                        href="/v2/admin/activite"
+                        className="text-[11px] font-bold text-primary inline-flex items-center gap-0.5"
+                      >
+                        Voir tout ({merged.length}) →
+                      </a>
+                    )}
+                  </div>
+                  {merged.length === 0 ? (
+                    <div className="bg-white border border-rule rounded-2xl p-6 text-center">
+                      <Sparkles className="w-6 h-6 text-text-tertiary mx-auto mb-2" />
+                      <p className="text-sm font-bold text-text-primary">
+                        Aucun mouvement sur les dernières 24h
+                      </p>
+                      <p className="text-xs text-text-secondary mt-1">
+                        Réceptions, sorties et transferts apparaîtront ici
+                        dès qu&apos;ils seront validés.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-rule rounded-2xl divide-y divide-rule overflow-hidden">
+                      {visible.map((row, i) => (
+                        <ActivityRow
+                          key={i}
+                          row={row}
+                          depots={depots}
+                          employes={employes}
+                        />
+                      ))}
+                      {hidden > 0 && (
+                        <a
+                          href="/v2/admin/activite"
+                          className="block bg-cream p-3 text-center text-[12px] font-bold text-primary active:scale-[0.99] transition-transform"
+                        >
+                          +{hidden} autre{hidden > 1 ? "s" : ""} mouvement
+                          {hidden > 1 ? "s" : ""} — Tout consulter →
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </>
               );
             })()}
           </section>
