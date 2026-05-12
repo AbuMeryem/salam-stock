@@ -64,12 +64,20 @@ export default function BdlReceptionPage() {
   const [photoSlot, setPhotoSlot] = useState<1 | 2 | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Surplus modal state
+  // Surplus modal state — EAN connu du catalogue mais hors BDL
   const [surplusModal, setSurplusModal] = useState<
-    | { code: string; produitNom: string; produitId: string | null }
+    | { code: string; produitNom: string; produitId: string }
     | null
   >(null);
   const [surplusQty, setSurplusQty] = useState(1);
+
+  // Create-product modal state — EAN totalement inconnu (pas en catalogue)
+  const [createModal, setCreateModal] = useState<{ code: string } | null>(null);
+  const [newProdNom, setNewProdNom] = useState("");
+  const [newProdCategorie, setNewProdCategorie] = useState("Épicerie");
+  const [newProdPrix, setNewProdPrix] = useState("");
+  const [newProdQty, setNewProdQty] = useState(1);
+  const [creatingProd, setCreatingProd] = useState(false);
 
   // Ref pour éviter stale closure dans le scanner
   const bdlRef = useRef<BdlDetail | null>(null);
@@ -182,18 +190,102 @@ export default function BdlReceptionPage() {
       return;
     }
 
-    // EAN ∉ BDL : lookup produit + ouvre modal surplus
+    // EAN ∉ BDL : lookup produit en catalogue
     const { data: prod } = await sb
       .from("produits")
       .select("id, nom, ean")
       .eq("ean", code)
       .maybeSingle();
-    setSurplusModal({
-      code,
-      produitNom: (prod as { nom?: string } | null)?.nom ?? "Produit inconnu",
-      produitId: (prod as { id?: string } | null)?.id ?? null,
-    });
-    setSurplusQty(1);
+    const prodRow = prod as { id?: string; nom?: string } | null;
+
+    if (prodRow?.id) {
+      // Produit connu mais hors BDL → modal surplus
+      setSurplusModal({
+        code,
+        produitNom: prodRow.nom ?? "Produit",
+        produitId: prodRow.id,
+      });
+      setSurplusQty(1);
+      return;
+    }
+
+    // Produit totalement inconnu → modal création
+    setCreateModal({ code });
+    setNewProdNom("");
+    setNewProdCategorie("Épicerie");
+    setNewProdPrix("");
+    setNewProdQty(1);
+  }
+
+  // ─── Create-product submit ─────────────────────────────────────
+  async function submitCreateProduct() {
+    if (!createModal || !bdl) return;
+    const nom = newProdNom.trim();
+    if (nom.length < 2) {
+      toast.error("Nom du produit requis (≥ 2 caractères)");
+      return;
+    }
+    const prix = parseFloat(newProdPrix.replace(",", "."));
+    if (Number.isNaN(prix) || prix <= 0) {
+      toast.error("Prix unitaire invalide");
+      return;
+    }
+    const qty = Math.max(1, Math.floor(newProdQty));
+    setCreatingProd(true);
+    const sb = supabase();
+    if (!sb) {
+      setCreatingProd(false);
+      return;
+    }
+    try {
+      // 1. Insère le produit
+      const { data: created, error: errProd } = await sb
+        .from("produits")
+        .insert({
+          ean: createModal.code,
+          nom,
+          categorie: newProdCategorie,
+          requires_barcode_print: false,
+        })
+        .select("id")
+        .single();
+      if (errProd) throw new Error(errProd.message);
+      const produitId = (created as { id: string }).id;
+
+      // 2. Prix initial dans stock_par_depot pour le dépôt destination
+      if (bdl.depot_destination_id) {
+        await sb.from("stock_par_depot").insert({
+          produit_id: produitId,
+          depot_id: bdl.depot_destination_id,
+          quantite: 0,
+          prix_vente: prix,
+          is_visible: true,
+        });
+      }
+
+      // 3. Ajoute une ligne BDL avec qty_attendue = qty saisie et qty_recue = qty saisie
+      //    (statut "recu" car on a déjà la marchandise sous la main)
+      await sb.from("bons_de_livraison_lignes").insert({
+        bdl_id: bdl.id,
+        produit_id: produitId,
+        code_barre_attendu: createModal.code,
+        quantite_attendue: qty,
+        quantite_recue: qty,
+        statut: "recu",
+        scanne_le: new Date().toISOString(),
+        scanne_par: employe?.id ?? null,
+      });
+
+      toast.success(`Fiche créée : ${nom} · ${qty} unité${qty > 1 ? "s" : ""} reçue${qty > 1 ? "s" : ""}`, {
+        duration: 2400,
+      });
+      setCreateModal(null);
+      void fetchBdl();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur création");
+    } finally {
+      setCreatingProd(false);
+    }
   }
 
   // ─── Surplus submit ────────────────────────────────────────────
@@ -684,6 +776,153 @@ export default function BdlReceptionPage() {
               </button>
               <button
                 onClick={() => setSurplusModal(null)}
+                className="w-full mt-2 text-text-secondary text-[13px] font-semibold py-2"
+              >
+                Annuler
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create-product modal — EAN totalement inconnu */}
+      <AnimatePresence>
+        {createModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end justify-center"
+          >
+            <motion.div
+              initial={{ y: 60 }}
+              animate={{ y: 0 }}
+              exit={{ y: 60 }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              className="bg-white w-full max-w-[460px] rounded-t-[28px] p-6 pb-8 shadow-card-lg max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start gap-3">
+                <span className="w-12 h-12 rounded-2xl bg-gold-soft text-primary-dark flex items-center justify-center shrink-0">
+                  <PackagePlus className="w-6 h-6" />
+                </span>
+                <div className="flex-1">
+                  <p className="label-caps text-primary">Produit inconnu</p>
+                  <h3 className="text-[18px] font-extrabold text-text-primary mt-1">
+                    Créer la fiche
+                  </h3>
+                  <p className="text-[11px] font-mono bg-cream text-text-tertiary inline-block px-2 py-1 rounded-lg mt-2">
+                    {createModal.code}
+                  </p>
+                </div>
+                <button onClick={() => setCreateModal(null)}>
+                  <X className="w-5 h-5 text-text-tertiary" />
+                </button>
+              </div>
+
+              <p className="text-[12.5px] text-text-secondary mt-3 leading-relaxed">
+                Ce code-barres ne correspond à aucun produit du catalogue.
+                Remplis la fiche pour l&apos;ajouter au BDL et au stock.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                <label className="block">
+                  <span className="label-caps text-text-tertiary block mb-1.5">
+                    Nom du produit
+                  </span>
+                  <input
+                    value={newProdNom}
+                    onChange={(e) => setNewProdNom(e.target.value)}
+                    placeholder="ex : Bricks tunisiens x10"
+                    className="input-field"
+                    autoFocus
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="label-caps text-text-tertiary block mb-1.5">
+                    Catégorie
+                  </span>
+                  <select
+                    value={newProdCategorie}
+                    onChange={(e) => setNewProdCategorie(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="Boucherie">Boucherie</option>
+                    <option value="Charcuterie">Charcuterie</option>
+                    <option value="Épicerie">Épicerie</option>
+                    <option value="Frais">Frais</option>
+                    <option value="Surgelés">Surgelés</option>
+                    <option value="Boissons">Boissons</option>
+                    <option value="Hygiène">Hygiène</option>
+                  </select>
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="label-caps text-text-tertiary block mb-1.5">
+                      Prix unitaire (€)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={newProdPrix}
+                      onChange={(e) => setNewProdPrix(e.target.value)}
+                      placeholder="ex : 4.90"
+                      className="input-field tabular"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="label-caps text-text-tertiary block mb-1.5">
+                      Qté reçue
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setNewProdQty((q) => Math.max(1, q - 1))}
+                        className="w-10 h-12 rounded-2xl bg-cream font-bold text-lg text-text-primary"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        value={newProdQty}
+                        onChange={(e) =>
+                          setNewProdQty(
+                            Math.max(1, parseInt(e.target.value || "1", 10))
+                          )
+                        }
+                        inputMode="numeric"
+                        className="flex-1 input-field text-center text-lg font-extrabold tabular"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewProdQty((q) => q + 1)}
+                        className="w-10 h-12 rounded-2xl bg-cream font-bold text-lg text-text-primary"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <button
+                onClick={() => void submitCreateProduct()}
+                disabled={creatingProd}
+                className="w-full mt-5 bg-primary text-white rounded-[18px] py-4 px-5 flex items-center justify-center gap-2 font-bold shadow-card-lg active:scale-[0.99] disabled:opacity-50"
+              >
+                {creatingProd ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4" />
+                )}
+                {creatingProd
+                  ? "Création…"
+                  : "Créer la fiche et ajouter au BDL"}
+              </button>
+              <button
+                onClick={() => setCreateModal(null)}
                 className="w-full mt-2 text-text-secondary text-[13px] font-semibold py-2"
               >
                 Annuler
