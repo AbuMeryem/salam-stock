@@ -25,7 +25,7 @@ export function AssistantFab({ role, hideOnNoNav = false }: Props) {
     <Link
       href="/v2/admin/assistant-ia"
       aria-label="Assistant IA"
-      className="fixed z-[55] bottom-[calc(var(--nav-height,64px)+var(--safe-bottom,0px)+18px)] right-4 w-14 h-14 rounded-full shadow-card-lg flex items-center justify-center bg-gradient-to-br from-[#0E3B2E] to-[#082A20] active:scale-95 transition-transform"
+      className="fixed z-[55] bottom-[calc(var(--nav-height,64px)+var(--safe-bottom,0px)+36px)] right-4 w-14 h-14 rounded-full shadow-card-lg flex items-center justify-center bg-gradient-to-br from-[#0E3B2E] to-[#082A20] active:scale-95 transition-transform"
     >
       <span className="absolute -inset-1 rounded-full bg-gold-bright/30 animate-ping opacity-60" />
       <Sparkles className="w-6 h-6 text-gold-bright relative" strokeWidth={2.4} />
