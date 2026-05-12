@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import { PageAccentStripe } from "@/components/v2/PageAccentStripe";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
 import { useV2 } from "@/lib/v2-store";
@@ -186,12 +187,7 @@ export default function V2SortiePage() {
     <V2Shell hideNav>
       <PageAccentStripe accent="bordeaux" />
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="label-caps text-danger mt-3">Déclarer une sortie</p>
         <h1 className="h1 text-text-primary mt-1">Sortie de stock</h1>
         <p className="body-md text-text-secondary mt-1">

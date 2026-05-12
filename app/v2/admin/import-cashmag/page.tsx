@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, FileSpreadsheet, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 
 interface ImportResult {
   ok: boolean;
@@ -52,9 +53,7 @@ export default function ImportCashmagPage() {
   return (
     <V2Shell hideNav>
       <header className="px-5 pt-7">
-        <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="section-eyebrow mt-3"><FileSpreadsheet className="w-3 h-3" />Import ventes Cashmag</p>
         <h1 className="h1 text-text-primary mt-1">Importer le CSV Cashmag</h1>
         <p className="body-md text-text-secondary mt-1">

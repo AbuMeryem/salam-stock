@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { V2Shell } from "@/components/v2/V2Shell";
+import { BackButton } from "@/components/v2/BackButton";
 import type { DailyZSummary } from "@/lib/cashbox/daily-z";
 import { downloadOrShare } from "@/lib/download-helper";
 import { DownloadCompleteBar } from "@/components/v2/DownloadCompleteBar";
@@ -162,12 +163,7 @@ export default function RecapFiscalPage() {
   return (
     <V2Shell hideNav>
       <header className="px-5 pt-7">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+        <BackButton />
         <p className="section-eyebrow mt-3">
           <Receipt className="w-3 h-3" />
           Récap fiscal journalier
