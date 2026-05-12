@@ -23,6 +23,7 @@ import { useV2 } from "@/lib/v2-store";
 import { dataMode } from "@/lib/db";
 import { DepotSwitcher } from "./DepotSwitcher";
 import { V2Logo } from "./V2Logo";
+import { AdminMenu } from "./AdminMenu";
 
 interface NavItem {
   label: string;
@@ -167,6 +168,7 @@ export function V2Shell({
             </Link>
             <div className="flex items-center gap-2">
               <DepotSwitcher />
+              <AdminMenu role={employe.role} />
               <button
                 onClick={logout}
                 className="w-9 h-9 rounded-full bg-white border border-rule flex items-center justify-center text-text-secondary"

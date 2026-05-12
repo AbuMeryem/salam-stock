@@ -80,6 +80,7 @@ export default function V2AdminDashboardPage() {
   const [revenue, setRevenue] = useState<RevenueDataPoint[]>([]);
   const [view, setView] = useState<"stock" | "drive">("stock");
   const [loading, setLoading] = useState(true);
+  const [showAllDepots, setShowAllDepots] = useState(false);
 
   useEffect(() => {
     void load();
@@ -284,7 +285,7 @@ export default function V2AdminDashboardPage() {
             État des dépôts
           </p>
           <section className="px-5 mt-2 space-y-3">
-            {stats.map((s, idx) => {
+            {(showAllDepots ? stats : stats.slice(0, 3)).map((s, idx) => {
               const isEntrepot = s.depot.type === "entrepot";
               return (
                 <motion.div
@@ -364,6 +365,22 @@ export default function V2AdminDashboardPage() {
                 </motion.div>
               );
             })}
+            {!showAllDepots && stats.length > 3 && (
+              <button
+                onClick={() => setShowAllDepots(true)}
+                className="w-full bg-cream border border-rule rounded-2xl py-3 text-sm font-bold text-primary inline-flex items-center justify-center gap-1.5"
+              >
+                Voir les {stats.length - 3} autre{stats.length - 3 > 1 ? "s" : ""} dépôt{stats.length - 3 > 1 ? "s" : ""}
+              </button>
+            )}
+            {showAllDepots && stats.length > 3 && (
+              <button
+                onClick={() => setShowAllDepots(false)}
+                className="w-full text-xs font-bold text-text-secondary py-2"
+              >
+                Replier
+              </button>
+            )}
           </section>
 
           {/* EMPTY RECEPTIONS — workflow safety net */}
