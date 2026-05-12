@@ -70,6 +70,18 @@ export default function BdlReceptionPage() {
   const [numFournDraft, setNumFournDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Carton learning state — flow pour apprendre la liaison carton↔produit
+  const [learnCartonModal, setLearnCartonModal] = useState<{
+    code: string;
+    step: "qty" | "pick";
+    qty: number;
+  } | null>(null);
+  const [cartonScannerOpen, setCartonScannerOpen] = useState(false);
+  const [cartonSearchQuery, setCartonSearchQuery] = useState("");
+  const [cartonSearchResults, setCartonSearchResults] = useState<
+    Array<{ id: string; nom: string; ean: string | null; categorie: string | null }>
+  >([]);
+
   // Surplus modal state — EAN connu du catalogue mais hors BDL
   const [surplusModal, setSurplusModal] = useState<
     | { code: string; produitNom: string; produitId: string }
@@ -161,6 +173,37 @@ export default function BdlReceptionPage() {
     })().catch((e) => console.warn("[adminIds] fail:", e));
   }, []);
 
+  // Search produits dans modal carton learn step "pick"
+  useEffect(() => {
+    if (!learnCartonModal || learnCartonModal.step !== "pick") {
+      setCartonSearchResults([]);
+      return;
+    }
+    if (!cartonSearchQuery.trim()) {
+      setCartonSearchResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const sb = supabase();
+      if (!sb) return;
+      const q = cartonSearchQuery.trim();
+      const { data } = await sb
+        .from("produits")
+        .select("id, nom, ean, categorie")
+        .or(`nom.ilike.%${q}%,marque.ilike.%${q}%,ean.ilike.%${q}%`)
+        .limit(15);
+      setCartonSearchResults(
+        (data ?? []) as Array<{
+          id: string;
+          nom: string;
+          ean: string | null;
+          categorie: string | null;
+        }>
+      );
+    }, 220);
+    return () => clearTimeout(t);
+  }, [cartonSearchQuery, learnCartonModal]);
+
   // ─── KPI dérivés ───────────────────────────────────────────────
   const progression = useMemo(() => {
     if (!bdl) return { scanned: 0, total: 0, pct: 0 };
@@ -191,6 +234,62 @@ export default function BdlReceptionPage() {
     if (!sb) {
       toast.error("Supabase indisponible");
       return;
+    }
+
+    // 0. CARTON CONNU ? Lookup la table codes_barres_cartons.
+    //    Si trouvé → on récupère le produit lié + multiplier, puis on
+    //    re-route comme si on avait scanné l'EAN unitaire N fois.
+    const { data: cartonRow } = await sb
+      .from("codes_barres_cartons")
+      .select("ean_carton, produit_id, quantite_par_carton")
+      .eq("ean_carton", code)
+      .maybeSingle();
+    const carton = cartonRow as {
+      ean_carton: string;
+      produit_id: string;
+      quantite_par_carton: number;
+    } | null;
+    if (carton) {
+      // Trouve la ligne BDL qui matche ce produit
+      const matched = cur.bons_de_livraison_lignes.find(
+        (l) => l.produit_id === carton.produit_id
+      );
+      if (matched) {
+        const newQte = matched.quantite_recue + carton.quantite_par_carton;
+        const newStat: BdlLigne["statut"] =
+          newQte >= matched.quantite_attendue ? "recu" : "attendu";
+        await sb
+          .from("bons_de_livraison_lignes")
+          .update({
+            quantite_recue: newQte,
+            statut: newStat,
+            scanne_le: new Date().toISOString(),
+            scanne_par: employe?.id ?? null,
+          })
+          .eq("id", matched.id);
+        toast.success(
+          `Carton ${matched.produits?.nom ?? "produit"} · +${carton.quantite_par_carton} (${newQte}/${matched.quantite_attendue})`,
+          { duration: 1800 }
+        );
+        void fetchBdl();
+        return;
+      }
+      // Produit du carton hors BDL → modal surplus avec la qty du carton
+      const { data: prodNom } = await sb
+        .from("produits")
+        .select("id, nom")
+        .eq("id", carton.produit_id)
+        .maybeSingle();
+      const pn = prodNom as { id: string; nom: string } | null;
+      if (pn) {
+        setSurplusModal({
+          code,
+          produitNom: pn.nom,
+          produitId: pn.id,
+        });
+        setSurplusQty(carton.quantite_par_carton);
+        return;
+      }
     }
 
     // Match contre une ligne du BDL ?
@@ -330,6 +429,86 @@ export default function BdlReceptionPage() {
     } finally {
       setCreatingProd(false);
     }
+  }
+
+  // ─── Carton learn : scan produit interne + bind au code carton ──
+  async function handleCartonInternalScan(code: string) {
+    setCartonScannerOpen(false);
+    if (!learnCartonModal) return;
+    const sb = supabase();
+    if (!sb) return;
+    const { data: prod } = await sb
+      .from("produits")
+      .select("id, nom, ean, categorie")
+      .eq("ean", code)
+      .maybeSingle();
+    const p = prod as {
+      id: string;
+      nom: string;
+      ean: string | null;
+      categorie: string | null;
+    } | null;
+    if (!p) {
+      toast.warning(
+        `EAN ${code} inconnu — utilise la recherche par nom ci-dessous.`,
+        { duration: 3500 }
+      );
+      return;
+    }
+    await bindCartonToProduct(p.id, p.nom);
+  }
+
+  async function bindCartonToProduct(produitId: string, produitNom: string) {
+    if (!learnCartonModal || !bdl) return;
+    const sb = supabase();
+    if (!sb) return;
+    const { error: errLearn } = await sb.from("codes_barres_cartons").insert({
+      ean_carton: learnCartonModal.code,
+      produit_id: produitId,
+      quantite_par_carton: learnCartonModal.qty,
+      learned_by: employe?.id ?? null,
+    });
+    if (errLearn) {
+      toast.error("Erreur apprentissage carton : " + errLearn.message);
+      return;
+    }
+    const cur = bdlRef.current;
+    const matched = cur?.bons_de_livraison_lignes.find(
+      (l) => l.produit_id === produitId
+    );
+    if (matched) {
+      const newQte = matched.quantite_recue + learnCartonModal.qty;
+      const newStat: BdlLigne["statut"] =
+        newQte >= matched.quantite_attendue ? "recu" : "attendu";
+      await sb
+        .from("bons_de_livraison_lignes")
+        .update({
+          quantite_recue: newQte,
+          statut: newStat,
+          scanne_le: new Date().toISOString(),
+          scanne_par: employe?.id ?? null,
+        })
+        .eq("id", matched.id);
+    } else {
+      await sb.from("bons_de_livraison_lignes").insert({
+        bdl_id: bdl.id,
+        produit_id: produitId,
+        code_barre_attendu: learnCartonModal.code,
+        quantite_attendue: learnCartonModal.qty,
+        quantite_recue: learnCartonModal.qty,
+        statut: "recu",
+        scanne_le: new Date().toISOString(),
+        scanne_par: employe?.id ?? null,
+      });
+    }
+    toast.success(
+      `Carton appris : ${produitNom} × ${learnCartonModal.qty} (codes liés)`,
+      { duration: 3000 }
+    );
+    setLearnCartonModal(null);
+    setCartonSearchQuery("");
+    setCartonSearchResults([]);
+    void fetchBdl();
   }
 
   // ─── Surplus submit ────────────────────────────────────────────
@@ -902,6 +1081,13 @@ export default function BdlReceptionPage() {
         onScan={(code) => void handleScan(code)}
       />
 
+      {/* Scanner DÉDIÉ apprentissage carton — scan d'un produit interne */}
+      <BarcodeScanner
+        open={cartonScannerOpen}
+        onClose={() => setCartonScannerOpen(false)}
+        onScan={(code) => void handleCartonInternalScan(code)}
+      />
+
       {/* Photo capture modal */}
       <PhotoCapture
         open={photoOpen}
@@ -911,6 +1097,167 @@ export default function BdlReceptionPage() {
         }}
         onCapture={(d) => void handlePhotoCapture(d)}
       />
+
+      {/* Carton learn modal — apprentissage liaison carton↔produit */}
+      <AnimatePresence>
+        {learnCartonModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end justify-center"
+          >
+            <motion.div
+              initial={{ y: 60 }}
+              animate={{ y: 0 }}
+              exit={{ y: 60 }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              className="bg-white w-full max-w-[460px] rounded-t-[28px] p-6 pb-8 shadow-card-lg max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start gap-3">
+                <span className="w-12 h-12 rounded-2xl bg-gold-soft text-primary-dark flex items-center justify-center shrink-0">
+                  <PackageCheck className="w-6 h-6" />
+                </span>
+                <div className="flex-1">
+                  <p className="label-caps text-primary">Apprentissage carton</p>
+                  <h3 className="text-[18px] font-extrabold text-text-primary mt-1">
+                    {learnCartonModal.step === "qty"
+                      ? "Combien d'unités ?"
+                      : "Quel produit est dedans ?"}
+                  </h3>
+                  <p className="text-[11px] font-mono bg-cream text-text-tertiary inline-block px-2 py-1 rounded-lg mt-2">
+                    Carton : {learnCartonModal.code}
+                  </p>
+                </div>
+                <button onClick={() => setLearnCartonModal(null)}>
+                  <X className="w-5 h-5 text-text-tertiary" />
+                </button>
+              </div>
+
+              {learnCartonModal.step === "qty" && (
+                <>
+                  <p className="text-[12.5px] text-text-secondary mt-3 leading-relaxed">
+                    Indique combien d&apos;unités sont dans ce carton. La
+                    prochaine fois que ce code-barre sera scanné, on
+                    multipliera automatiquement.
+                  </p>
+                  <div className="mt-5 flex items-center gap-3">
+                    <button
+                      onClick={() =>
+                        setLearnCartonModal({
+                          ...learnCartonModal,
+                          qty: Math.max(0, learnCartonModal.qty - 1),
+                        })
+                      }
+                      className="w-12 h-12 rounded-2xl bg-cream border border-rule font-bold text-xl"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      value={learnCartonModal.qty || ""}
+                      onChange={(e) =>
+                        setLearnCartonModal({
+                          ...learnCartonModal,
+                          qty: Math.max(0, parseInt(e.target.value || "0", 10)),
+                        })
+                      }
+                      inputMode="numeric"
+                      placeholder="ex: 24"
+                      className="flex-1 input-field text-center text-2xl font-extrabold"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() =>
+                        setLearnCartonModal({
+                          ...learnCartonModal,
+                          qty: learnCartonModal.qty + 1,
+                        })
+                      }
+                      className="w-12 h-12 rounded-2xl bg-cream border border-rule font-bold text-xl"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setLearnCartonModal({
+                        ...learnCartonModal,
+                        step: "pick",
+                      })
+                    }
+                    disabled={learnCartonModal.qty <= 0}
+                    className="w-full mt-5 bg-primary text-white rounded-2xl py-3.5 font-bold disabled:opacity-50"
+                  >
+                    Suivant — identifier le produit interne
+                  </button>
+                </>
+              )}
+
+              {learnCartonModal.step === "pick" && (
+                <>
+                  <p className="text-[12.5px] text-text-secondary mt-3 leading-relaxed">
+                    {learnCartonModal.qty} unités dans le carton. Scanne ou
+                    cherche le produit qui est dedans.
+                  </p>
+                  <button
+                    onClick={() => setCartonScannerOpen(true)}
+                    className="w-full mt-3 bg-primary text-white rounded-2xl py-3 inline-flex items-center justify-center gap-2 font-bold"
+                  >
+                    <ScanBarcode className="w-5 h-5" />
+                    Scanner un produit interne
+                  </button>
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      value={cartonSearchQuery}
+                      onChange={(e) => setCartonSearchQuery(e.target.value)}
+                      placeholder="Ou cherche par nom (Cristaline, Coca…)"
+                      className="input-field"
+                    />
+                    <div className="mt-2 max-h-64 overflow-y-auto space-y-1">
+                      {cartonSearchResults.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => void bindCartonToProduct(p.id, p.nom)}
+                          className="w-full text-left p-2 rounded-xl active:bg-cream"
+                        >
+                          <p className="text-sm font-bold text-text-primary truncate">
+                            {p.nom}
+                          </p>
+                          <p className="text-[11px] text-text-tertiary font-mono">
+                            {p.ean ?? "—"}
+                            {p.categorie && (
+                              <span className="ml-2">· {p.categorie}</span>
+                            )}
+                          </p>
+                        </button>
+                      ))}
+                      {cartonSearchQuery.length >= 2 &&
+                        cartonSearchResults.length === 0 && (
+                          <p className="text-xs text-text-tertiary text-center py-3">
+                            Aucun résultat
+                          </p>
+                        )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setLearnCartonModal({
+                        ...learnCartonModal,
+                        step: "qty",
+                      })
+                    }
+                    className="w-full mt-3 text-text-secondary text-sm font-bold py-2"
+                  >
+                    ← Modifier la quantité
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Surplus modal */}
       <AnimatePresence>
@@ -1032,8 +1379,24 @@ export default function BdlReceptionPage() {
 
               <p className="text-[12.5px] text-text-secondary mt-3 leading-relaxed">
                 Ce code-barres ne correspond à aucun produit du catalogue.
-                Remplis la fiche pour l&apos;ajouter au BDL et au stock.
+                Remplis la fiche, ou indique que c&apos;est un carton (ex 24 bouteilles).
               </p>
+
+              {/* Bascule carton learn — pour scanner d'abord un produit interne */}
+              <button
+                onClick={() => {
+                  setLearnCartonModal({
+                    code: createModal.code,
+                    step: "qty",
+                    qty: 0,
+                  });
+                  setCreateModal(null);
+                }}
+                className="w-full mt-3 bg-gold-soft text-primary-dark rounded-2xl py-3 inline-flex items-center justify-center gap-2 font-bold border border-gold/40 active:scale-[0.99]"
+              >
+                <PackageCheck className="w-5 h-5" />
+                C&apos;est un carton (pas une unité)
+              </button>
 
               <div className="mt-5 space-y-3">
                 <label className="block">
