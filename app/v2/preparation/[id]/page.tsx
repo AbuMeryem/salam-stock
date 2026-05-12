@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 import { V2Shell } from "@/components/v2/V2Shell";
 import { BackButton } from "@/components/v2/BackButton";
 import { ProductThumbnail } from "@/components/v2/ProductThumbnail";
+import { ClientTypeBadge, type ClientType } from "@/components/v2/ClientTypeBadge";
 import { useV2 } from "@/lib/v2-store";
 import { BarcodeScanner } from "@/components/reception/BarcodeScanner";
 import { PhotoCapture } from "@/components/reception/PhotoCapture";
@@ -271,15 +272,28 @@ export default function V2PreparationDetailPage() {
                       <p className={`text-sm font-bold truncate ${done ? "line-through" : ""}`}>
                         {l.produit?.nom ?? "Produit"}
                       </p>
-                      <p className="text-[11px] text-text-tertiary inline-flex items-center gap-1">
-                        Qté {l.quantite}
-                        {cold && (
-                          <span className="inline-flex items-center gap-0.5 text-blue-600 ml-1">
-                            <Snowflake className="w-3 h-3" />
-                            Frais
-                          </span>
-                        )}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <ClientTypeBadge
+                          size="sm"
+                          type={
+                            (l.produit?.client_type as ClientType | undefined) ??
+                            (l.zone_preparation === "professionnel"
+                              ? "pro"
+                              : l.zone_preparation === "traiteur"
+                                ? "traiteur"
+                                : "particulier")
+                          }
+                        />
+                        <span className="text-[11px] text-text-tertiary inline-flex items-center gap-1">
+                          Qté {l.quantite}
+                          {cold && (
+                            <span className="inline-flex items-center gap-0.5 text-blue-600 ml-1">
+                              <Snowflake className="w-3 h-3" />
+                              Frais
+                            </span>
+                          )}
+                        </span>
+                      </div>
                     </div>
                     {l.statut_preparation === "prepare" && (
                       <span className="text-success">
