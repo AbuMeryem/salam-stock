@@ -103,12 +103,108 @@ function nameOf(p: { prenom: string | null; nom: string } | null) {
 
 export default function AlertesPage() {
   const router = useRouter();
+  const employe = useV2((s) => s.currentEmploye);
   const [tab, setTab] = useState<Tab>("sorties");
   const [sorties, setSorties] = useState<SortieSuspecte[]>([]);
   const [surplus, setSurplus] = useState<AlerteSurplus[]>([]);
   const [demarque, setDemarque] = useState<DemarqueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<SortieSuspecte | null>(null);
+
+  /** Action ACCEPTER : marque la sortie comme reviewed (score → 1.0
+   *  pour la sortir du filtre lt(0.7)) + préfixe note + reload. */
+  async function handleAccept(d: SortieSuspecte) {
+    const sb = supabase();
+    if (!sb) return;
+    const note = `[✓ Accepté par ${employe?.prenom ?? "admin"} le ${new Date().toLocaleString("fr-FR")}] ${d.ia_coherence_notes ?? ""}`;
+    const { error } = await sb
+      .from("sorties_stock")
+      .update({
+        ia_coherence_score: 1.0,
+        ia_coherence_notes: note.slice(0, 500),
+      })
+      .eq("id", d.id);
+    if (error) {
+      toast.error("Erreur : " + error.message);
+      return;
+    }
+    toast.success("Sortie acceptée et tracée");
+    setDetail(null);
+    void loadAll();
+  }
+
+  /** Action CLARIFICATION : push notif iPhone à l'employé ayant fait
+   *  la sortie. La sortie reste flagged pour review ultérieure. */
+  async function handleClarification(d: SortieSuspecte) {
+    const sb = supabase();
+    if (!sb) return;
+    // Trouve employe.id depuis le name (pas dispo direct sur SortieSuspecte)
+    const empName = nameOf(d.employes);
+    const { data: emps } = await sb
+      .from("employes")
+      .select("id, prenom, nom")
+      .eq("is_active", true);
+    const targetEmp = ((emps ?? []) as Array<{
+      id: string;
+      prenom: string | null;
+      nom: string;
+    }>).find(
+      (e) => `${e.prenom ?? ""} ${e.nom}`.trim() === empName
+    );
+    if (!targetEmp) {
+      toast.error(`Employé "${empName}" introuvable`);
+      return;
+    }
+    const note = `[⚠ Clarification demandée par ${employe?.prenom ?? "admin"} le ${new Date().toLocaleString("fr-FR")}] ${d.ia_coherence_notes ?? ""}`;
+    await sb
+      .from("sorties_stock")
+      .update({ ia_coherence_notes: note.slice(0, 500) })
+      .eq("id", d.id);
+    // Push notif iPhone vers l'employé
+    void fetch("/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `🔍 Clarification demandée`,
+        body: `${employe?.prenom ?? "Admin"} te demande de clarifier la sortie ${d.type} de ${nameOf(d.produits)}.`,
+        url: "/v2/sortie",
+        tag: `clarif-${d.id}`,
+        urgent: true,
+        employe_ids: [targetEmp.id],
+      }),
+    }).catch((e) => console.warn("[push clarif] fail:", e));
+    toast.warning(
+      `Clarification demandée à ${empName} (push iPhone envoyée)`,
+      { duration: 4000 }
+    );
+    setDetail(null);
+    void loadAll();
+  }
+
+  /** Action REJETER : marque la sortie comme rejetée (score 0.99 pour
+   *  la sortir du filtre) + revert mental du stock à faire à la main
+   *  (pas d'undo automatique pour préserver l'audit). */
+  async function handleReject(d: SortieSuspecte) {
+    const sb = supabase();
+    if (!sb) return;
+    const note = `[✗ REJETÉ par ${employe?.prenom ?? "admin"} le ${new Date().toLocaleString("fr-FR")}] ${d.ia_coherence_notes ?? ""}`;
+    const { error } = await sb
+      .from("sorties_stock")
+      .update({
+        ia_coherence_score: 0.99,
+        ia_coherence_notes: note.slice(0, 500),
+      })
+      .eq("id", d.id);
+    if (error) {
+      toast.error("Erreur : " + error.message);
+      return;
+    }
+    toast.error("Sortie rejetée — stock à corriger manuellement", {
+      duration: 4500,
+    });
+    setDetail(null);
+    void loadAll();
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -426,32 +522,21 @@ export default function AlertesPage() {
 
               <div className="mt-6 space-y-2">
                 <button
-                  onClick={() => {
-                    toast.success("Sortie acceptée");
-                    setDetail(null);
-                  }}
+                  onClick={() => void handleAccept(detail)}
                   className="w-full bg-success text-white rounded-[18px] py-3.5 font-bold flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Accepter la sortie
                 </button>
                 <button
-                  onClick={() => {
-                    toast.warning(
-                      `Clarification demandée à ${nameOf(detail.employes)}`
-                    );
-                    setDetail(null);
-                  }}
+                  onClick={() => void handleClarification(detail)}
                   className="w-full bg-white border border-rule text-text-primary rounded-[18px] py-3 font-bold flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   <Eye className="w-4 h-4" />
                   Demander clarification employé
                 </button>
                 <button
-                  onClick={() => {
-                    toast.error("Sortie rejetée · à investiguer");
-                    setDetail(null);
-                  }}
+                  onClick={() => void handleReject(detail)}
                   className="w-full text-danger text-[13px] font-bold py-2"
                 >
                   Rejeter la sortie
