@@ -748,8 +748,13 @@ export default function V2ReceptionPage() {
         onAccept={(rec) => void handleRecognitionAccept(rec)}
       />
 
-      {/* UNKNOWN EAN — LEARNING WORKFLOW */}
-      {unknownEan && (
+      {/* UNKNOWN EAN — LEARNING WORKFLOW
+          Cachée tant que le scanner interne est ouvert, sinon elle
+          reste à z-70 par-dessus le scanner à z-60 → effet "scanner
+          flouté avec modal toujours visible". Le state unknownEan
+          reste set, donc dès que le scanner se ferme, le modal
+          réapparaît automatiquement. */}
+      {unknownEan && !learnScannerOpen && !recognitionOpen && (
         <div className="fixed inset-0 z-[70] fixed-overlay flex items-end justify-center">
           <div className="bg-white w-full max-w-[460px] rounded-t-[28px] p-6 pb-10 animate-slide-up">
             <div className="flex items-center justify-between mb-3">
