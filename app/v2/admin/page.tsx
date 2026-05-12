@@ -197,6 +197,13 @@ export default function V2AdminDashboardPage() {
             Import Cashmag
           </a>
           <a
+            href="/v2/admin/bons-reception"
+            className="inline-flex items-center gap-2 bg-white border border-rule rounded-full px-3.5 py-1.5 text-[11.5px] font-bold text-text-primary shadow-card active:scale-[0.98] transition-transform"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+            BR émis
+          </a>
+          <a
             href="/v2/admin/alertes"
             className="inline-flex items-center gap-2 bg-danger text-white rounded-full px-3.5 py-1.5 text-[11.5px] font-bold shadow-card active:scale-[0.98] transition-transform"
           >
