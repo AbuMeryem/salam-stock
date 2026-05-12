@@ -166,7 +166,7 @@ export default function AlertesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: `🔍 Clarification demandée`,
-        body: `${employe?.prenom ?? "Admin"} te demande de clarifier la sortie ${d.type} de ${nameOf(d.produits)}.`,
+        body: `${employe?.prenom ?? "Admin"} te demande de clarifier la sortie ${d.type} de ${d.produits?.nom ?? "produit"}.`,
         url: "/v2/sortie",
         tag: `clarif-${d.id}`,
         urgent: true,
