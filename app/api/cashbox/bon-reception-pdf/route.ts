@@ -120,6 +120,9 @@ export async function GET(req: Request) {
     let y = margin;
 
     // ─── HEADER ──────────────────────────────────────────────
+    // Deux colonnes : identité magasin à gauche, type de doc à droite,
+    // trackées indépendamment puis y = max des deux + séparateur.
+    const headerYStart = y;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("SALAM MARKET", margin, y);
@@ -129,55 +132,106 @@ export async function GET(req: Request) {
     doc.text("K & A FOOD · SIRET 802 773 812", margin, y);
     y += 4;
     doc.text("8 av. Larrieu-Thibaud, 31100 Toulouse", margin, y);
+    const headerYLeft = y;
 
     // À droite : type de document
+    let headerYRight = headerYStart;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("BON DE RÉCEPTION", pageW - margin, margin + 1, { align: "right" });
+    doc.text("BON DE RÉCEPTION", pageW - margin, headerYRight + 1, {
+      align: "right",
+    });
+    headerYRight += 6;
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`N° ${bdl.numero_bdl}`, pageW - margin, margin + 6, { align: "right" });
+    doc.text(`N° ${bdl.numero_bdl}`, pageW - margin, headerYRight + 1, {
+      align: "right",
+    });
+    headerYRight += 4;
     doc.text(
       `Émis le ${fmtDateTimeFr(bdl.receptionne_le ?? new Date().toISOString())}`,
       pageW - margin,
-      margin + 10,
+      headerYRight + 1,
       { align: "right" }
     );
+    headerYRight += 4;
 
-    y += 10;
+    y = Math.max(headerYLeft, headerYRight) + 4;
     line(doc, margin, y, pageW - margin);
     y += 8;
 
     // ─── BLOC FOURNISSEUR + LIVRAISON ────────────────────────
+    // Trackers indépendants pour les 2 colonnes — évite que la colonne
+    // droite n'atterrisse au milieu de l'adresse fournisseur (gauche)
+    // quand celle-ci fait plusieurs lignes.
+    const colLeftX = margin;
+    const colRightX = pageW / 2 + 5;
+    const colHalfW = colW / 2 - 4;
+    let yLeft = y;
+    let yRight = y;
+
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text("FOURNISSEUR", margin, y);
-    doc.text("LIVRAISON", pageW / 2 + 5, y);
-    y += 5;
+    doc.text("FOURNISSEUR", colLeftX, yLeft);
+    doc.text("LIVRAISON", colRightX, yRight);
+    yLeft += 5;
+    yRight += 5;
+
     doc.setFont("helvetica", "normal");
-    doc.text(bdl.fournisseurs?.nom ?? "—", margin, y);
-    doc.text(`Dépôt : ${bdl.depots?.nom ?? "—"}`, pageW / 2 + 5, y);
-    y += 4;
+
+    // LEFT : nom + adresse fournisseur multiligne + SIRET si dispo
+    doc.text(bdl.fournisseurs?.nom ?? "—", colLeftX, yLeft);
+    yLeft += 4;
     if (bdl.fournisseurs?.adresse) {
-      const lines = doc.splitTextToSize(bdl.fournisseurs.adresse, colW / 2 - 4);
-      doc.text(lines, margin, y);
-      y += lines.length * 4;
+      const lines = doc.splitTextToSize(bdl.fournisseurs.adresse, colHalfW);
+      doc.text(lines, colLeftX, yLeft);
+      yLeft += lines.length * 4;
     }
-    doc.text(`Date prévue : ${fmtDateFr(bdl.date_livraison_prevue)}`, pageW / 2 + 5, y - 4);
+    if (bdl.fournisseurs?.siret) {
+      doc.setTextColor(120, 120, 120);
+      doc.text(`SIRET ${bdl.fournisseurs.siret}`, colLeftX, yLeft);
+      doc.setTextColor(0, 0, 0);
+      yLeft += 4;
+    }
+
+    // RIGHT : dépôt + date prévue + n° BDL fournisseur si saisi
+    doc.text(`Dépôt : ${bdl.depots?.nom ?? "—"}`, colRightX, yRight);
+    yRight += 4;
+    doc.text(
+      `Date prévue : ${fmtDateFr(bdl.date_livraison_prevue)}`,
+      colRightX,
+      yRight
+    );
+    yRight += 4;
     if (bdl.numero_bdl_fournisseur) {
       doc.setFont("helvetica", "bold");
       doc.text(
-        `BDL fournisseur : ${bdl.numero_bdl_fournisseur}`,
-        pageW / 2 + 5,
-        y
+        `N° BDL fourn. : ${bdl.numero_bdl_fournisseur}`,
+        colRightX,
+        yRight
       );
       doc.setFont("helvetica", "normal");
+      yRight += 4;
     }
-    y += 6;
+
+    // Aligne y sur la plus longue des 2 colonnes + séparateur
+    y = Math.max(yLeft, yRight) + 4;
     line(doc, margin, y, pageW - margin);
     y += 6;
 
     // ─── TABLEAU LIGNES ──────────────────────────────────────
+    // Layout 6 colonnes calé sur le bord droit de la zone contenu
+    // (pageW - margin = 194mm pour A4 16mm de marge). Empêche le Statut
+    // de déborder sur la marge droite (bug avant : x=208 sur page 210).
+    const xRight = pageW - margin; // 194
+    const COL_STATUT = xRight; // right-aligned end
+    const COL_ECART = xRight - 22; // 172
+    const COL_RECU = xRight - 42; // 152
+    const COL_ATT = xRight - 60; // 134
+    const COL_EAN = margin + 84; // 100
+    const COL_NOM_X = margin + 1; // 17
+    const COL_NOM_W = COL_EAN - COL_NOM_X - 2; // ~81mm pour le nom
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("LIGNES RÉCEPTIONNÉES", margin, y);
@@ -186,12 +240,12 @@ export async function GET(req: Request) {
     doc.setFontSize(8);
     doc.setFillColor(245, 240, 225);
     doc.rect(margin, y - 3, colW, 6, "F");
-    doc.text("PRODUIT", margin + 1, y + 1);
-    doc.text("EAN", margin + 95, y + 1);
-    doc.text("Att.", margin + 130, y + 1, { align: "right" });
-    doc.text("Reçu", margin + 150, y + 1, { align: "right" });
-    doc.text("Écart", margin + 170, y + 1, { align: "right" });
-    doc.text("Statut", margin + 192, y + 1, { align: "right" });
+    doc.text("PRODUIT", COL_NOM_X, y + 1);
+    doc.text("EAN", COL_EAN, y + 1);
+    doc.text("Att.", COL_ATT, y + 1, { align: "right" });
+    doc.text("Reçu", COL_RECU, y + 1, { align: "right" });
+    doc.text("Écart", COL_ECART, y + 1, { align: "right" });
+    doc.text("Statut", COL_STATUT, y + 1, { align: "right" });
     y += 6;
 
     doc.setFont("helvetica", "normal");
@@ -210,17 +264,22 @@ export async function GET(req: Request) {
         y = margin;
       }
 
-      const nom = (l.produits?.nom ?? "Produit").slice(0, 50);
-      doc.text(nom, margin + 1, y);
-      doc.text(l.produits?.ean ?? l.code_barre_attendu ?? "—", margin + 95, y);
-      doc.text(String(l.quantite_attendue), margin + 130, y, { align: "right" });
-      doc.text(String(l.quantite_recue), margin + 150, y, { align: "right" });
+      // Tronque le nom à la largeur dispo (mesure réelle)
+      const fullNom = l.produits?.nom ?? "Produit";
+      const nomLines = doc.splitTextToSize(fullNom, COL_NOM_W);
+      const nomDisplay = nomLines[0] + (nomLines.length > 1 ? "…" : "");
+      doc.text(nomDisplay, COL_NOM_X, y);
+      doc.text(l.produits?.ean ?? l.code_barre_attendu ?? "—", COL_EAN, y);
+      doc.text(String(l.quantite_attendue), COL_ATT, y, { align: "right" });
+      doc.text(String(l.quantite_recue), COL_RECU, y, { align: "right" });
 
       // Écart : rouge si négatif, ambre si positif, gris si zéro
       if (ecart < 0) doc.setTextColor(229, 72, 61);
       else if (ecart > 0) doc.setTextColor(217, 119, 6);
       else doc.setTextColor(120, 120, 120);
-      doc.text(`${ecart > 0 ? "+" : ""}${ecart}`, margin + 170, y, { align: "right" });
+      doc.text(`${ecart > 0 ? "+" : ""}${ecart}`, COL_ECART, y, {
+        align: "right",
+      });
       doc.setTextColor(0, 0, 0);
 
       const statutLabel =
@@ -231,7 +290,7 @@ export async function GET(req: Request) {
             : l.statut === "surplus"
               ? "Surplus"
               : "Att.";
-      doc.text(statutLabel, margin + 192, y, { align: "right" });
+      doc.text(statutLabel, COL_STATUT, y, { align: "right" });
       y += 4.5;
     }
 
@@ -240,14 +299,14 @@ export async function GET(req: Request) {
     y += 5;
 
     doc.setFont("helvetica", "bold");
-    doc.text("TOTAUX", margin + 1, y);
-    doc.text(String(totalAttendu), margin + 130, y, { align: "right" });
-    doc.text(String(totalRecu), margin + 150, y, { align: "right" });
+    doc.text("TOTAUX", COL_NOM_X, y);
+    doc.text(String(totalAttendu), COL_ATT, y, { align: "right" });
+    doc.text(String(totalRecu), COL_RECU, y, { align: "right" });
     if (totalEcart < 0) doc.setTextColor(229, 72, 61);
     else if (totalEcart > 0) doc.setTextColor(217, 119, 6);
     doc.text(
       `${totalEcart > 0 ? "+" : ""}${totalEcart}`,
-      margin + 170,
+      COL_ECART,
       y,
       { align: "right" }
     );
@@ -273,15 +332,24 @@ export async function GET(req: Request) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
 
-      const photoW = (colW - 8) / photos.length;
+      const gap = 4;
+      const photoW = (colW - gap * (photos.length - 1)) / photos.length;
       let x = margin;
       const photoY = y;
       const photoH = 45;
       for (const ph of photos) {
         try {
-          // Skip si pas une data URL valide (Storage URL externe doit être fetched ailleurs)
           if (ph.url && ph.url.startsWith("data:image")) {
-            doc.addImage(ph.url, "JPEG", x, photoY, photoW, photoH);
+            // Détecte le format réel depuis l'en-tête data URL
+            const m = ph.url.match(/^data:image\/([a-z]+);/i);
+            const fmt = (m?.[1] ?? "jpeg").toUpperCase();
+            const supported =
+              fmt === "JPEG" || fmt === "JPG" || fmt === "PNG" || fmt === "WEBP"
+                ? fmt === "JPG"
+                  ? "JPEG"
+                  : fmt
+                : "JPEG";
+            doc.addImage(ph.url, supported as any, x, photoY, photoW, photoH);
           } else {
             doc.setFillColor(245, 240, 225);
             doc.rect(x, photoY, photoW, photoH, "F");
@@ -289,13 +357,15 @@ export async function GET(req: Request) {
               align: "center",
             });
           }
-          doc.text(ph.label, x + photoW / 2, photoY + photoH + 4, {
+          // Tronque le label s'il dépasse la largeur photo
+          const labelLines = doc.splitTextToSize(ph.label, photoW - 2);
+          doc.text(labelLines[0], x + photoW / 2, photoY + photoH + 4, {
             align: "center",
           });
         } catch {
           /* ignore une image corrompue */
         }
-        x += photoW + 4;
+        x += photoW + gap;
       }
       y = photoY + photoH + 10;
     }
