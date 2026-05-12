@@ -8,24 +8,26 @@ import {
   ImagePlus,
   RefreshCw,
   ScanBarcode,
+  Target,
   X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 
 /**
- * Scanner v7.1 — facingMode environment + zoom 2× + Vision Apple
+ * Scanner v8 — Tap-to-Snap
  *
- * V1 (html5-qrcode auto) ne marche PAS sur iPhone 14 triple-cam : iOS
- * choisit l'ultra-wide 0.5×, code-barre 2× plus petit, html5-qrcode
- * en JS pur trop lent. v7 avec deviceId enumerate échouait avec
- * NotFoundError (iOS régénère les deviceId).
+ * Live preview (caméra arrière, zoom 4×, focus continu) MAIS aucun
+ * decode en boucle. Mohamed pointe le code-barre, attend que la mise
+ * au point se fasse (visible à l'œil), tap n'importe où sur le viseur
+ * → on capture une image haute résolution + decode immédiat avec
+ * BarcodeDetector natif (Vision Framework Apple) ou ZXing fallback.
  *
- * v7.1 : pas de deviceId, on laisse iOS choisir. On compense via
- *   - track.applyConstraints zoom 2× → rapproche virtuellement
- *   - focusMode continuous → autofocus permanent
- *   - BarcodeDetector natif Safari iOS 17+ (Vision Framework)
- *   - Contrôles live zoom +/- / torche / refocus
+ * 1 tap = 1 essai = 1 résultat. Comme un appareil photo numérique.
+ *
+ * Filets de sécurité (toujours visibles en bas) :
+ *   - Bouton "Photo Caméra iOS native" (input file capture environment)
+ *   - Saisie manuelle EAN au clavier
  */
 
 interface BarcodeScannerProps {
@@ -35,7 +37,9 @@ interface BarcodeScannerProps {
 }
 
 interface BarcodeDetectorLike {
-  detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+  detect(
+    source: HTMLVideoElement | ImageBitmap | HTMLCanvasElement
+  ): Promise<Array<{ rawValue: string }>>;
 }
 interface BarcodeDetectorCtor {
   new (opts?: { formats?: string[] }): BarcodeDetectorLike;
@@ -52,6 +56,16 @@ interface CamCaps {
   torch?: boolean;
 }
 
+const FORMATS = [
+  "ean_13",
+  "ean_8",
+  "upc_a",
+  "upc_e",
+  "code_128",
+  "code_39",
+  "itf",
+];
+
 export function BarcodeScanner({
   open,
   onClose,
@@ -60,18 +74,15 @@ export function BarcodeScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
-  const rafRef = useRef<number | null>(null);
   const stoppedRef = useRef(false);
   const onScanRef = useRef(onScan);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const html5Ref = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [phase, setPhase] = useState<"starting" | "scanning" | "error">(
+  const [phase, setPhase] = useState<"starting" | "ready" | "snapping" | "error">(
     "starting"
   );
   const [error, setError] = useState<string | null>(null);
-  const [engine, setEngine] = useState<"native" | "html5" | null>(null);
-  const [zoom, setZoom] = useState(3);
+  const [zoom, setZoom] = useState(4);
   const [zoomCaps, setZoomCaps] = useState<{ min: number; max: number } | null>(
     null
   );
@@ -79,89 +90,12 @@ export function BarcodeScanner({
   const [hasTorch, setHasTorch] = useState(false);
   const [manualInput, setManualInput] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [flash, setFlash] = useState(false);
+  const [snapResult, setSnapResult] = useState<"miss" | null>(null);
 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
-
-  /** Décode une image (File) via BarcodeDetector natif si dispo, sinon
-   *  ZXing browser. Utilisé par le bouton "Photo Caméra iOS" qui ouvre
-   *  l'app Caméra Apple native (focus + zoom parfaits, contourne tous
-   *  les bugs WebRTC). */
-  async function decodeImageFile(file: File): Promise<string | null> {
-    const Detector = getNativeDetector();
-    const bitmap = await createImageBitmap(file).catch(() => null);
-    if (!bitmap) return null;
-
-    if (Detector) {
-      try {
-        const det = new Detector({
-          formats: [
-            "ean_13",
-            "ean_8",
-            "upc_a",
-            "upc_e",
-            "code_128",
-            "code_39",
-            "itf",
-          ],
-        });
-        // BarcodeDetector accepte ImageBitmap
-        const codes = await (det as unknown as {
-          detect(b: ImageBitmap): Promise<Array<{ rawValue: string }>>;
-        }).detect(bitmap);
-        if (codes && codes.length > 0 && codes[0].rawValue) {
-          return String(codes[0].rawValue);
-        }
-      } catch (e) {
-        console.warn("[Scanner] BarcodeDetector image fail, fallback ZXing:", e);
-      }
-    }
-    // Fallback ZXing
-    try {
-      const { BrowserMultiFormatReader } = await import("@zxing/browser");
-      const reader = new BrowserMultiFormatReader();
-      const url = URL.createObjectURL(file);
-      try {
-        const result = await reader.decodeFromImageUrl(url);
-        return result?.getText() ?? null;
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    } catch (e) {
-      console.warn("[Scanner] ZXing image fail:", e);
-      return null;
-    }
-  }
-
-  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // reset pour permettre re-pick same file
-    if (!file) return;
-    setPhotoBusy(true);
-    try {
-      const code = await decodeImageFile(file);
-      if (code) {
-        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-          navigator.vibrate?.(40);
-        }
-        onScanRef.current(code.trim());
-        void stopAll();
-      } else {
-        setError(
-          "Aucun code-barre détecté sur la photo. Reprends en cadrant le code bien droit, le plus près possible."
-        );
-        setPhase("error");
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError("Décodage échoué : " + msg);
-      setPhase("error");
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
 
   function fireScan(code: string) {
     if (stoppedRef.current) return;
@@ -174,26 +108,12 @@ export function BarcodeScanner({
 
   async function stopAll() {
     stoppedRef.current = true;
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    if (html5Ref.current) {
-      try {
-        if (html5Ref.current.isScanning) await html5Ref.current.stop();
-        await html5Ref.current.clear();
-      } catch {
-        /* ignore */
-      }
-      html5Ref.current = null;
-    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
     trackRef.current = null;
-    setEngine(null);
     setHasTorch(false);
     setTorchOn(false);
   }
@@ -204,6 +124,7 @@ export function BarcodeScanner({
       setError(null);
       setManualInput("");
       setPhase("starting");
+      setSnapResult(null);
       void startCamera();
     } else {
       void stopAll();
@@ -228,12 +149,12 @@ export function BarcodeScanner({
       streamRef.current = stream;
       const track = stream.getVideoTracks()[0];
       trackRef.current = track;
-      console.log("[Scanner] track label:", track.label);
+      console.log("[Scanner] track:", track.label);
 
       const caps = (
         track.getCapabilities ? track.getCapabilities() : {}
       ) as CamCaps;
-      console.log("[Scanner] capabilities:", caps);
+      console.log("[Scanner] caps:", caps);
 
       const advanced: MediaTrackConstraintSet[] = [];
       if (caps.focusMode?.includes("continuous")) {
@@ -265,12 +186,7 @@ export function BarcodeScanner({
       videoRef.current.setAttribute("autoplay", "true");
       await videoRef.current.play();
 
-      const Detector = getNativeDetector();
-      if (Detector) {
-        await runNativeLoop(Detector);
-      } else {
-        await runHtml5Fallback();
-      }
+      setPhase("ready");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[Scanner] start error:", e);
@@ -280,68 +196,82 @@ export function BarcodeScanner({
     }
   }
 
-  async function runNativeLoop(Detector: BarcodeDetectorCtor) {
-    let detector: BarcodeDetectorLike;
-    try {
-      detector = new Detector({
-        formats: [
-          "ean_13",
-          "ean_8",
-          "upc_a",
-          "upc_e",
-          "code_128",
-          "code_39",
-          "itf",
-        ],
-      });
-    } catch {
-      detector = new Detector();
-    }
-    setEngine("native");
-    setPhase("scanning");
+  /** Capture une frame haute-rés du <video> et tente le décode. */
+  async function decodeFromVideo(video: HTMLVideoElement): Promise<string | null> {
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) return null;
 
-    const loop = async () => {
-      if (stoppedRef.current || !videoRef.current) return;
+    // Dessine sur canvas — full résolution caméra
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, w, h);
+
+    // 1. BarcodeDetector natif (Vision Apple) sur canvas
+    const Detector = getNativeDetector();
+    if (Detector) {
       try {
-        const codes = await detector.detect(videoRef.current);
+        const det = new Detector({ formats: FORMATS });
+        const codes = await det.detect(canvas);
         if (codes && codes.length > 0 && codes[0].rawValue) {
-          fireScan(String(codes[0].rawValue));
-          return;
+          return String(codes[0].rawValue);
         }
-      } catch {
-        /* frame skip */
+      } catch (e) {
+        console.warn("[Scanner] Vision detect KO:", e);
       }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
+    }
+
+    // 2. Fallback ZXing sur canvas → blob → image url
+    try {
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.92)
+      );
+      if (!blob) return null;
+      const url = URL.createObjectURL(blob);
+      try {
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        const reader = new BrowserMultiFormatReader();
+        const result = await reader.decodeFromImageUrl(url);
+        return result?.getText() ?? null;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      console.warn("[Scanner] ZXing image KO:", e);
+      return null;
+    }
   }
 
-  async function runHtml5Fallback() {
-    const { Html5Qrcode } = await import("html5-qrcode");
-    if (!videoRef.current) throw new Error("video element manquant");
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    const SCAN_ID = "salam-barcode-html5";
-    let host = document.getElementById(SCAN_ID);
-    if (!host) {
-      host = document.createElement("div");
-      host.id = SCAN_ID;
-      videoRef.current.parentElement?.appendChild(host);
-    }
-    const reader = new Html5Qrcode(SCAN_ID, { verbose: false });
-    html5Ref.current = reader;
-    await reader.start(
-      { facingMode: { ideal: "environment" } },
-      { fps: 15, qrbox: { width: 280, height: 160 }, aspectRatio: 1.4 },
-      (decoded) => fireScan(decoded),
-      () => {
-        /* per-frame */
+  /** Tap-to-snap : capture + decode immédiat. Burst de 3 essais
+   *  rapprochés (50ms entre chaque) pour maximiser les chances. */
+  async function tapSnap() {
+    if (phase !== "ready" || !videoRef.current) return;
+    setPhase("snapping");
+    setSnapResult(null);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 120);
+
+    try {
+      // Burst 3 essais rapides
+      for (let i = 0; i < 3; i++) {
+        const code = await decodeFromVideo(videoRef.current);
+        if (code) {
+          fireScan(code);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 50));
       }
-    );
-    setEngine("html5");
-    setPhase("scanning");
+      // Aucun des 3 essais n'a décodé → toast miss
+      setSnapResult("miss");
+      setPhase("ready");
+      setTimeout(() => setSnapResult(null), 2000);
+    } catch (e) {
+      console.error("[Scanner] snap error:", e);
+      setPhase("ready");
+    }
   }
 
   async function applyZoom(target: number) {
@@ -354,7 +284,7 @@ export function BarcodeScanner({
         advanced: [{ zoom: z } as unknown as MediaTrackConstraintSet],
       } as MediaTrackConstraints);
     } catch (e) {
-      console.warn("[Scanner] zoom apply fail:", e);
+      console.warn("[Scanner] zoom KO:", e);
     }
   }
 
@@ -368,11 +298,11 @@ export function BarcodeScanner({
       } as MediaTrackConstraints);
       setTorchOn(next);
     } catch (e) {
-      console.warn("[Scanner] torch fail:", e);
+      console.warn("[Scanner] torch KO:", e);
     }
   }
 
-  async function tapToFocus() {
+  async function refocus() {
     const t = trackRef.current;
     if (!t) return;
     try {
@@ -383,6 +313,61 @@ export function BarcodeScanner({
       } as MediaTrackConstraints);
     } catch {
       /* ignore */
+    }
+  }
+
+  /** Décode une image File via BarcodeDetector ou ZXing. */
+  async function decodeImageFile(file: File): Promise<string | null> {
+    const Detector = getNativeDetector();
+    const bitmap = await createImageBitmap(file).catch(() => null);
+    if (!bitmap) return null;
+    if (Detector) {
+      try {
+        const det = new Detector({ formats: FORMATS });
+        const codes = await det.detect(bitmap);
+        if (codes && codes.length > 0 && codes[0].rawValue) {
+          return String(codes[0].rawValue);
+        }
+      } catch {
+        /* ZXing fallback */
+      }
+    }
+    try {
+      const { BrowserMultiFormatReader } = await import("@zxing/browser");
+      const reader = new BrowserMultiFormatReader();
+      const url = URL.createObjectURL(file);
+      try {
+        const result = await reader.decodeFromImageUrl(url);
+        return result?.getText() ?? null;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const code = await decodeImageFile(file);
+      if (code) {
+        fireScan(code);
+      } else {
+        setError(
+          "Aucun code détecté sur la photo. Reprends en cadrant le code-barre droit, le plus près possible."
+        );
+        setPhase("error");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError("Décodage échoué : " + msg);
+      setPhase("error");
+    } finally {
+      setPhotoBusy(false);
     }
   }
 
@@ -398,10 +383,11 @@ export function BarcodeScanner({
 
   return (
     <div className="fixed inset-0 z-[60] bg-black flex flex-col">
+      {/* HEADER */}
       <div className="safe-top flex items-center justify-between px-5 pb-3 text-white">
         <div className="flex items-center gap-2">
           <ScanBarcode className="w-5 h-5 text-gold" />
-          <span className="font-semibold">Scanner un code-barre</span>
+          <span className="font-semibold">Tap pour scanner</span>
         </div>
         <button
           onClick={onClose}
@@ -412,9 +398,12 @@ export function BarcodeScanner({
         </button>
       </div>
 
+      {/* VIEWFINDER — toute la zone est cliquable pour Tap-to-Snap */}
       <div
         className="flex-1 relative flex items-center justify-center bg-black overflow-hidden"
-        onClick={() => void tapToFocus()}
+        onClick={() => void tapSnap()}
+        role="button"
+        aria-label="Tap pour capturer le code-barre"
       >
         <video
           ref={videoRef}
@@ -424,6 +413,11 @@ export function BarcodeScanner({
           autoPlay
         />
 
+        {/* Flash blanc bref à la capture */}
+        {flash && (
+          <div className="absolute inset-0 bg-white/70 z-30 pointer-events-none animate-pulse" />
+        )}
+
         {phase === "starting" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10">
             <div className="animate-spin w-10 h-10 border-2 border-gold border-t-transparent rounded-full mb-3" />
@@ -431,25 +425,40 @@ export function BarcodeScanner({
           </div>
         )}
 
-        {phase === "scanning" && (
+        {(phase === "ready" || phase === "snapping") && (
           <>
+            {/* Viseur */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
               <div className="relative w-[80%] max-w-[320px] aspect-[2/1] border-2 border-gold rounded-2xl">
-                <div className="absolute -top-1 -left-1 w-7 h-7 border-t-4 border-l-4 border-white rounded-tl-2xl" />
-                <div className="absolute -top-1 -right-1 w-7 h-7 border-t-4 border-r-4 border-white rounded-tr-2xl" />
-                <div className="absolute -bottom-1 -left-1 w-7 h-7 border-b-4 border-l-4 border-white rounded-bl-2xl" />
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 border-b-4 border-r-4 border-white rounded-br-2xl" />
+                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-2xl" />
+                <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-2xl" />
+                <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-2xl" />
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-2xl" />
+                {/* Réticule center */}
+                <Target className="absolute inset-0 m-auto w-8 h-8 text-gold/60" />
               </div>
             </div>
 
-            <div className="absolute bottom-16 inset-x-0 z-10 px-4">
+            {/* Hint texte */}
+            <div className="absolute top-3 inset-x-0 z-10 px-4 pointer-events-none">
+              <div className="mx-auto max-w-[420px] bg-black/60 backdrop-blur-sm rounded-full px-4 py-2 text-[12px] text-white/95 font-bold text-center">
+                {phase === "snapping"
+                  ? "📸 Décodage…"
+                  : snapResult === "miss"
+                    ? "❌ Non lu — re-cadre + tap"
+                    : "👆 Tap n'importe où pour scanner"}
+              </div>
+            </div>
+
+            {/* Contrôles caméra (zoom / torche / refocus) */}
+            <div className="absolute bottom-20 inset-x-0 z-10 px-4">
               <div className="mx-auto max-w-[420px] flex items-center justify-center gap-2">
                 {zoomCaps && (
                   <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        void applyZoom(zoom - 0.5);
+                        void applyZoom(zoom - 1);
                       }}
                       className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-sm text-white flex items-center justify-center"
                       aria-label="Zoom −"
@@ -462,7 +471,7 @@ export function BarcodeScanner({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        void applyZoom(zoom + 0.5);
+                        void applyZoom(zoom + 1);
                       }}
                       className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-sm text-white flex items-center justify-center"
                       aria-label="Zoom +"
@@ -490,7 +499,7 @@ export function BarcodeScanner({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    void tapToFocus();
+                    void refocus();
                   }}
                   className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-sm text-white flex items-center justify-center"
                   aria-label="Re-focus"
@@ -500,14 +509,19 @@ export function BarcodeScanner({
               </div>
             </div>
 
-            <div className="absolute bottom-3 inset-x-0 z-10 px-4 pointer-events-none">
-              <div className="mx-auto max-w-[420px] bg-black/60 backdrop-blur-sm rounded-full px-4 py-1.5 text-[11px] text-white/85 font-mono text-center">
-                Moteur :{" "}
-                <b className="text-gold">
-                  {engine === "native" ? "Vision Apple" : "html5-qrcode"}
-                </b>{" "}
-                · Tap écran = re-focus
-              </div>
+            {/* Gros bouton circulaire central — UX appareil photo */}
+            <div className="absolute bottom-3 inset-x-0 z-10 flex justify-center pointer-events-none">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void tapSnap();
+                }}
+                disabled={phase === "snapping"}
+                aria-label="Capturer maintenant"
+                className="pointer-events-auto w-16 h-16 rounded-full bg-white border-4 border-gold flex items-center justify-center shadow-card-lg active:scale-95 disabled:opacity-50"
+              >
+                <span className="w-12 h-12 rounded-full bg-gold-bright" />
+              </button>
             </div>
           </>
         )}
@@ -522,7 +536,10 @@ export function BarcodeScanner({
               {error}
             </p>
             <button
-              onClick={() => void startCamera()}
+              onClick={(e) => {
+                e.stopPropagation();
+                void startCamera();
+              }}
               className="mt-4 bg-white/15 text-white font-semibold rounded-full px-5 py-2 inline-flex items-center gap-2 text-sm"
             >
               <Camera className="w-4 h-4" />
@@ -532,9 +549,8 @@ export function BarcodeScanner({
         )}
       </div>
 
+      {/* FOOTER — filets de sécurité */}
       <div className="px-5 pb-safe pt-3 bg-black/95 border-t border-white/10 space-y-3">
-        {/* Photo Caméra iOS native — focus + zoom natif Apple, contourne
-            tous les bugs WebRTC. Si ça plante, ça plante nulle part. */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={photoBusy}
@@ -561,33 +577,35 @@ export function BarcodeScanner({
           className="hidden"
         />
 
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-white/60 mb-2">
-          Ou saisie manuelle
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={manualInput}
-            onChange={(e) =>
-              setManualInput(e.target.value.replace(/\D/g, "").slice(0, 14))
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitManual();
-            }}
-            placeholder="EAN ex. 3274080005003"
-            className="flex-1 bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base font-mono tabular outline-none focus:bg-white/15 focus:ring-2 focus:ring-gold"
-            maxLength={14}
-          />
-          <button
-            onClick={submitManual}
-            disabled={manualInput.length < 4}
-            className="bg-gold-bright text-primary-dark font-bold rounded-xl px-5 py-3 disabled:opacity-40"
-          >
-            OK
-          </button>
-        </div>
+        <details className="text-white/70">
+          <summary className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-white/60 cursor-pointer">
+            Saisie manuelle EAN
+          </summary>
+          <div className="flex gap-2 mt-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={manualInput}
+              onChange={(e) =>
+                setManualInput(e.target.value.replace(/\D/g, "").slice(0, 14))
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitManual();
+              }}
+              placeholder="EAN ex. 3274080005003"
+              className="flex-1 bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base font-mono tabular outline-none focus:bg-white/15 focus:ring-2 focus:ring-gold"
+              maxLength={14}
+            />
+            <button
+              onClick={submitManual}
+              disabled={manualInput.length < 4}
+              className="bg-gold-bright text-primary-dark font-bold rounded-xl px-5 py-3 disabled:opacity-40"
+            >
+              OK
+            </button>
+          </div>
+        </details>
       </div>
     </div>
   );
@@ -599,10 +617,10 @@ function humanError(raw: string): string {
     return "Caméra refusée. Réglages iPhone → Salam Stock → Caméra → Autoriser, puis recharge.";
   }
   if (m.includes("notreadable") || m.includes("trackstart")) {
-    return "Caméra utilisée par une autre app. Ferme les autres apps caméra.";
+    return "Caméra utilisée par une autre app.";
   }
   if (m.includes("notfound")) {
-    return "Caméra introuvable. Vérifie l'app Caméra iOS d'abord, puis recharge la PWA.";
+    return "Caméra introuvable. Vérifie l'app Caméra iOS d'abord.";
   }
   if (m.includes("overconstrained")) {
     return "La caméra ne supporte pas le mode demandé.";
