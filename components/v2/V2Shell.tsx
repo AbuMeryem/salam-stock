@@ -114,6 +114,14 @@ export function V2Shell({
     setSheetOpen(false);
   }, [pathname]);
 
+  // Scroll en haut à chaque navigation. Next 14 le fait par défaut sur
+  // <Link>, mais en PWA standalone iOS la position est parfois préservée
+  // (et certains layouts intermédiaires retiennent le scroll). On force.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+  }, [pathname]);
+
   useEffect(() => {
     if (!sheetOpen) return;
     function onKey(e: KeyboardEvent) {
