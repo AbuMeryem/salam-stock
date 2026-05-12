@@ -444,9 +444,11 @@ export default function V2AdminDashboardPage() {
               </div>
               <div className="space-y-2">
                 {flaggedSorties.slice(0, 4).map((s) => (
-                  <div
+                  <a
                     key={s.id}
-                    className="bg-danger-soft border border-danger/20 rounded-2xl p-3 flex items-center gap-3"
+                    href={`/v2/admin/alertes?sortie=${s.id}`}
+                    className="bg-danger-soft border border-danger/20 rounded-2xl p-3 flex items-center gap-3 active:scale-[0.99] transition-transform cursor-pointer"
+                    aria-label="Ouvrir le détail de l'alerte sur le dashboard alertes"
                   >
                     <AlertTriangle className="w-4 h-4 text-danger shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -458,7 +460,8 @@ export default function V2AdminDashboardPage() {
                         {s.ia_coherence_notes}
                       </p>
                     </div>
-                  </div>
+                    <span className="text-danger text-xs font-bold">→</span>
+                  </a>
                 ))}
                 {flaggedSorties.length > 4 && (
                   <a
@@ -523,12 +526,18 @@ export default function V2AdminDashboardPage() {
                   ) : (
                     <div className="bg-white border border-rule rounded-2xl divide-y divide-rule overflow-hidden">
                       {visible.map((row, i) => (
-                        <ActivityRow
+                        <a
                           key={i}
-                          row={row}
-                          depots={depots}
-                          employes={employes}
-                        />
+                          href="/v2/admin/activite"
+                          className="block active:bg-cream transition-colors cursor-pointer"
+                          aria-label="Voir le détail dans l'activité complète"
+                        >
+                          <ActivityRow
+                            row={row}
+                            depots={depots}
+                            employes={employes}
+                          />
+                        </a>
                       ))}
                       {hidden > 0 && (
                         <a

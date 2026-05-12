@@ -230,7 +230,10 @@ function Row({
     const d = depots.find((x) => x.id === r.depot_id);
     const e = employes.find((x) => x.id === r.employe_id);
     return (
-      <div className="px-3 py-2.5 flex items-center gap-3">
+      <a
+        href="/v2/reception"
+        className="px-3 py-2.5 flex items-center gap-3 active:bg-cream transition-colors"
+      >
         <span className="w-9 h-9 rounded-xl bg-success-soft text-success flex items-center justify-center shrink-0">
           <ArrowDownToLine className="w-4 h-4" />
         </span>
@@ -242,7 +245,8 @@ function Row({
             {e?.prenom} {e?.nom} · {formatTime(row.date)}
           </p>
         </div>
-      </div>
+        <span className="text-text-tertiary text-xs">→</span>
+      </a>
     );
   }
   if (row.type === "sor") {
@@ -252,7 +256,10 @@ function Row({
     const lowScore =
       s.ia_coherence_score !== null && s.ia_coherence_score < 0.6;
     return (
-      <div className="px-3 py-2.5 flex items-center gap-3">
+      <a
+        href={lowScore ? `/v2/admin/alertes?sortie=${s.id}` : "/v2/admin/alertes"}
+        className="px-3 py-2.5 flex items-center gap-3 active:bg-cream transition-colors"
+      >
         <span
           className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
             lowScore ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"
@@ -271,7 +278,8 @@ function Row({
             )}
           </p>
         </div>
-      </div>
+        <span className="text-text-tertiary text-xs">→</span>
+      </a>
     );
   }
   // transfert
@@ -280,7 +288,10 @@ function Row({
   const dd = depots.find((x) => x.id === t.depot_destination_id);
   const e = employes.find((x) => x.id === t.employe_id);
   return (
-    <div className="px-3 py-2.5 flex items-center gap-3">
+    <a
+      href="/v2/transfert"
+      className="px-3 py-2.5 flex items-center gap-3 active:bg-cream transition-colors"
+    >
       <span className="w-9 h-9 rounded-xl bg-gold-soft text-primary-dark flex items-center justify-center shrink-0">
         <Repeat2 className="w-4 h-4" />
       </span>
@@ -292,7 +303,8 @@ function Row({
           {e?.prenom} {e?.nom} · {formatTime(row.date)}
         </p>
       </div>
-    </div>
+      <span className="text-text-tertiary text-xs">→</span>
+    </a>
   );
 }
 
