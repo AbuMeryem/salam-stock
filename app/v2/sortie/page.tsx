@@ -28,6 +28,7 @@ import { PhotoCapture } from "@/components/reception/PhotoCapture";
 import {
   createSortie,
   findProduitByEan,
+  listEmployes,
   searchProduits,
 } from "@/lib/db";
 import type { Produit, SortieType } from "@/lib/types/db";
@@ -64,6 +65,20 @@ export default function V2SortiePage() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** IDs des admins (Otmane + Ahmed) qui reçoivent les notifs push
+   *  d'anomalie sortie. Récupéré dynamiquement au mount. */
+  const [adminIds, setAdminIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    void listEmployes().then((emps) => {
+      const admins = emps.filter(
+        (e) =>
+          e.role === "admin" ||
+          ["Otmane", "Ahmed"].includes(e.prenom ?? "")
+      );
+      setAdminIds(admins.map((e) => e.id));
+    });
+  }, []);
 
   const handleScanRef = useRef<((code: string) => void) | undefined>(undefined);
   const handleScan = async (code: string) => {
@@ -141,9 +156,10 @@ export default function V2SortiePage() {
         ia_coherence_notes: iaNotes,
       });
 
-      // Notify Otmane if low score
+      // Notify Otmane + Ahmed if low score
       if (iaScore !== null && iaScore < 0.6) {
-        await fetch("/api/notify", {
+        // 1. /api/notify (canal interne historique)
+        void fetch("/api/notify", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -159,10 +175,31 @@ export default function V2SortiePage() {
               ia_notes: iaNotes,
             },
           }),
-        });
+        }).catch((e) => console.warn("[notify] fail:", e));
+
+        // 2. Web Push lock-screen iPhone vers Otmane + Ahmed
+        if (adminIds.length > 0) {
+          const scorePct = Math.round(iaScore * 100);
+          void fetch("/api/push/send", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              title: `🚨 Sortie suspecte · IA ${scorePct}%`,
+              body: `${produit.nom} × ${quantite} (${type}) · ${depot.nom}${
+                iaNotes ? ` · ${iaNotes.slice(0, 80)}` : ""
+              }`,
+              url: `/v2/admin/alertes`,
+              tag: `sortie-${sortie.id}`,
+              urgent: iaScore < 0.4,
+              employe_ids: adminIds,
+              alerte_id: sortie.id,
+            }),
+          }).catch((e) => console.warn("[push] fail:", e));
+        }
+
         toast.warning(
-          `Score IA ${(iaScore * 100).toFixed(0)}% — Otmane notifié pour révision.`,
-          { duration: 4000 }
+          `Score IA ${(iaScore * 100).toFixed(0)}% — Otmane + Ahmed notifiés (push iPhone).`,
+          { duration: 4500 }
         );
       } else if (iaScore !== null) {
         toast.success(

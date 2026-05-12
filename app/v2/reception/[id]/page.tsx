@@ -350,6 +350,19 @@ export default function BdlReceptionPage() {
   // ─── Validation finale BDL ─────────────────────────────────────
   async function finalize() {
     if (!bdl) return;
+    // Photos palette OBLIGATOIRES — preuve livraison + protection litige
+    if (!bdl.photo_palette_url_1 || !bdl.photo_palette_url_2) {
+      const missing = !bdl.photo_palette_url_1 && !bdl.photo_palette_url_2
+        ? "Les 2 photos palette"
+        : !bdl.photo_palette_url_1
+          ? "La photo palette n°1"
+          : "La photo palette n°2";
+      toast.error(
+        `${missing} obligatoire${missing.startsWith("Les") ? "s" : ""} avant validation. Voir section "Photos palette" en haut.`,
+        { duration: 6000 }
+      );
+      return;
+    }
     if (!allRecu) {
       const ok = window.confirm(
         "Certaines lignes ne sont ni reçues ni marquées manquantes. Valider quand même ?"
