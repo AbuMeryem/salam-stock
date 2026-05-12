@@ -104,6 +104,15 @@ export default function V2PreparationKanbanPage() {
   const [isLive, setIsLive] = useState(false);
 
   async function reload() {
+    // Sync orders Drive → commandes_drive (pont entre les 2 projets
+    // Supabase distincts). Bloquant pour avoir les dernières commandes
+    // payées avant d'afficher le Kanban.
+    try {
+      await fetch("/api/sync/drive-pull", { method: "POST" });
+    } catch {
+      /* échec sync → on continue avec ce qui est déjà en local */
+    }
+
     const cmds = await listCommandesDrive();
     const enriched = await Promise.all(
       cmds.map(async (c) => ({
