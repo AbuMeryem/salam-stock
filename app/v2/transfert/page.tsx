@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  Building2,
   Camera,
   Check,
   Repeat2,
@@ -48,26 +49,40 @@ export default function V2TransfertPage() {
   const [photoOpen, setPhotoOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // ─── Règle métier transferts inter-dépôts ───────────────────
+  // L'employé est rattaché à UN dépôt (employe.depot_principal_id).
+  // Tous ses transferts sont INBOUND vers son dépôt. Le source dispo
+  // dépend de son dépôt :
+  //   Employé Particulier → reçoit depuis Pro
+  //   Employé Sodrune     → reçoit depuis Pro
+  //   Employé Pro         → reçoit depuis Particulier OU Sodrune
+  // Les admins n'ont pas de restriction (peuvent piloter n'importe
+  // quel transfert pour réajustement).
+  const ALLOWED_SOURCES_FOR_DEST: Record<string, string[]> = {
+    Particulier: ["Professionnel"],
+    Sodrune: ["Professionnel"],
+    Professionnel: ["Particulier", "Sodrune"],
+  };
+  const isAdmin = employe?.role === "admin";
+
   useEffect(() => {
     void listDepots().then((d) => {
       setDepots(d);
-      if (currentDepot) setSource(currentDepot);
+      // Destination forcée au dépôt principal de l'employé (sauf admin
+      // qui peut tout faire et garde le current depot du switcher).
+      if (!isAdmin && employe?.depot_principal_id) {
+        const own = d.find((x) => x.id === employe.depot_principal_id);
+        if (own) setDestination(own);
+      } else if (isAdmin && currentDepot) {
+        setDestination(currentDepot);
+      }
     });
-  }, [currentDepot]);
+  }, [currentDepot, employe?.depot_principal_id, isAdmin]);
 
-  // Directions de transfert autorisées (règle métier Salam Market) :
-  //   Particulier → Pro      (réassort comptoir pro)
-  //   Sodrune     → Pro      (livraison entrepôt vers pro)
-  //   Pro         → Particulier  (retour invendu / rotation)
-  // Toute autre combinaison est bloquée.
-  const ALLOWED_PAIRS: Record<string, string[]> = {
-    Particulier: ["Professionnel"],
-    Sodrune: ["Professionnel"],
-    Professionnel: ["Particulier"],
-  };
-  function allowedDestinations(src: Depot | null): Depot[] {
-    if (!src) return [];
-    const allowedNames = ALLOWED_PAIRS[src.nom] ?? [];
+  function allowedSources(dest: Depot | null): Depot[] {
+    if (!dest) return [];
+    if (isAdmin) return depots.filter((d) => d.id !== dest.id);
+    const allowedNames = ALLOWED_SOURCES_FOR_DEST[dest.nom] ?? [];
     return depots.filter((d) => allowedNames.includes(d.nom));
   }
 
@@ -188,26 +203,43 @@ export default function V2TransfertPage() {
         <h1 className="h1 text-text-primary mt-1">Bouger du stock</h1>
       </header>
 
-      {/* SOURCE / DESTINATION */}
+      {/* SOURCE → DESTINATION (destination lockée au dépôt de l'employé
+          sauf admin qui peut tout piloter) */}
       <section className="px-5 mt-6">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
           <DepotPick
             label="Source"
-            depots={depots}
+            depots={allowedSources(destination)}
             value={source}
-            onChange={(d) => {
-              setSource(d);
-              if (destination?.id === d.id) setDestination(null);
-            }}
+            onChange={setSource}
           />
           <ArrowRight className="w-5 h-5 text-text-tertiary" />
-          <DepotPick
-            label="Destination"
-            depots={allowedDestinations(source)}
-            value={destination}
-            onChange={setDestination}
-          />
+          {isAdmin ? (
+            <DepotPick
+              label="Destination"
+              depots={depots.filter((d) => d.id !== source?.id)}
+              value={destination}
+              onChange={(d) => {
+                setDestination(d);
+                if (source?.id === d.id) setSource(null);
+              }}
+            />
+          ) : (
+            <DepotLocked label="Vers votre dépôt" depot={destination} />
+          )}
         </div>
+        {!isAdmin && (
+          <p className="text-[11px] text-text-tertiary mt-2 leading-relaxed">
+            Tu peux faire entrer du stock vers <b>{destination?.nom ?? "—"}</b>{" "}
+            depuis{" "}
+            <b>
+              {allowedSources(destination)
+                .map((d) => d.nom)
+                .join(" ou ") || "—"}
+            </b>
+            . Demande à un admin pour les autres directions.
+          </p>
+        )}
       </section>
 
       {/* PRODUIT */}
@@ -428,6 +460,27 @@ function DepotPick({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+/** Champ destination en lecture seule pour un employé non-admin :
+ *  on affiche son dépôt sapin et figé, pour qu'il sache où arrive le stock
+ *  sans pouvoir le changer. */
+function DepotLocked({
+  label,
+  depot,
+}: {
+  label: string;
+  depot: Depot | null;
+}) {
+  return (
+    <div>
+      <p className="label-caps text-text-tertiary mb-2 text-center">{label}</p>
+      <div className="w-full bg-primary text-white rounded-2xl px-3 py-3 text-sm font-bold text-center inline-flex items-center justify-center gap-1.5">
+        <Building2 className="w-3.5 h-3.5 text-gold" />
+        {depot?.nom ?? "—"}
+      </div>
     </div>
   );
 }
