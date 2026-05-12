@@ -25,8 +25,16 @@
   --border-light: #E8E4D8;
   --border-medium: #D1CCB8;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --nav-height: 64px;
+  /* Nav bottom flottant : pill effective ~78px (icon 36 + label 14 +
+     paddings 16 + py-2 outer). Le token doit refléter la hauteur
+     visuelle réelle pour que pb-nav-stack laisse une vraie clearance. */
+  --nav-height: 80px;
   --cta-height: 80px;
+  /* Espace de respiration au-dessus du nav. Règle UX : le contenu
+     ne doit jamais être collé contre le pill nav. 48px = un peu plus
+     que la moitié de la hauteur du pill, lisible visuellement sans
+     créer un trou inutile. */
+  --nav-breathing: 48px;
   --header-height: 56px;
   /* Elevation */
   --shadow-card: 0 2px 12px rgba(14, 59, 46, 0.06);
@@ -357,13 +365,13 @@ body {
   .safe-top-md   { padding-top: calc(env(safe-area-inset-top, 0px) + 24px); }
   /* Bottom-padding helpers tied to nav-height + cta-height variables. */
   .pb-cta-stack {
-    padding-bottom: calc(var(--nav-height) + var(--cta-height) + var(--safe-bottom) + 32px);
+    padding-bottom: calc(var(--nav-height) + var(--cta-height) + var(--safe-bottom) + var(--nav-breathing));
   }
   .pb-cta-only {
-    padding-bottom: calc(var(--cta-height) + var(--safe-bottom) + 32px);
+    padding-bottom: calc(var(--cta-height) + var(--safe-bottom) + var(--nav-breathing));
   }
   .pb-nav-stack {
-    padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 32px);
+    padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--nav-breathing));
   }
   /* Float a CTA strip above the bottom nav (or above safe-area when no nav). */
   .cta-above-nav {
