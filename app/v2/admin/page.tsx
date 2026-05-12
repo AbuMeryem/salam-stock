@@ -555,7 +555,7 @@ export default function V2AdminDashboardPage() {
             })()}
           </section>
 
-          {/* INVENTAIRES TOURNANTS */}
+          {/* INVENTAIRES TOURNANTS — top 4, le reste sur historique */}
           {recentInventaires.length > 0 && (
             <section className="px-5 mt-7">
               <div className="flex items-center justify-between mb-3">
@@ -563,19 +563,33 @@ export default function V2AdminDashboardPage() {
                   <ClipboardCheck className="w-3 h-3" />
                   Inventaires du jour
                 </p>
-                <a
-                  href="/v2/inventaire/historique"
-                  className="text-[11px] font-bold text-primary inline-flex items-center gap-0.5"
-                >
-                  Historique →
-                </a>
+                {recentInventaires.length > 4 ? (
+                  <a
+                    href="/v2/inventaire/historique"
+                    className="text-[11px] font-bold text-primary inline-flex items-center gap-0.5"
+                  >
+                    Voir tout ({recentInventaires.length}) →
+                  </a>
+                ) : (
+                  <a
+                    href="/v2/inventaire/historique"
+                    className="text-[11px] font-bold text-primary inline-flex items-center gap-0.5"
+                  >
+                    Historique →
+                  </a>
+                )}
               </div>
-              <div className="bg-white border border-rule rounded-2xl divide-y divide-rule">
-                {recentInventaires.map((inv) => {
+              <div className="bg-white border border-rule rounded-2xl divide-y divide-rule overflow-hidden">
+                {recentInventaires.slice(0, 4).map((inv) => {
                   const d = depots.find((x) => x.id === inv.depot_id);
                   const e = employes.find((x) => x.id === inv.employe_assigne_id);
                   return (
-                    <div key={inv.id} className="p-3 flex items-center gap-3">
+                    <a
+                      key={inv.id}
+                      href="/v2/inventaire"
+                      className="p-3 flex items-center gap-3 active:bg-cream transition-colors"
+                      aria-label={`Ouvrir l'inventaire ${d?.nom ?? ""}`}
+                    >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-text-primary truncate">
                           {d?.nom} · {e?.prenom} {e?.nom}
@@ -602,9 +616,21 @@ export default function V2AdminDashboardPage() {
                             ? "Conforme"
                             : `Écart ${inv.ecart > 0 ? "+" : ""}${inv.ecart}`}
                       </span>
-                    </div>
+                      <span className="text-text-tertiary text-xs ml-1">→</span>
+                    </a>
                   );
                 })}
+                {recentInventaires.length > 4 && (
+                  <a
+                    href="/v2/inventaire/historique"
+                    className="block bg-cream p-3 text-center text-[12px] font-bold text-primary active:scale-[0.99] transition-transform"
+                  >
+                    +{recentInventaires.length - 4} autre
+                    {recentInventaires.length - 4 > 1 ? "s" : ""} inventaire
+                    {recentInventaires.length - 4 > 1 ? "s" : ""} —
+                    Tout consulter →
+                  </a>
+                )}
               </div>
             </section>
           )}
