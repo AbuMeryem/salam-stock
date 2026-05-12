@@ -1162,10 +1162,21 @@ export default function BdlReceptionPage() {
                           qty: Math.max(0, parseInt(e.target.value || "0", 10)),
                         })
                       }
+                      onFocus={(e) => {
+                        // Scroll vers le centre quand le clavier iOS
+                        // s'ouvre (sinon il cache le champ).
+                        setTimeout(
+                          () =>
+                            e.target.scrollIntoView({
+                              block: "center",
+                              behavior: "smooth",
+                            }),
+                          340
+                        );
+                      }}
                       inputMode="numeric"
                       placeholder="ex: 24"
                       className="flex-1 input-field text-center text-2xl font-extrabold"
-                      autoFocus
                     />
                     <button
                       onClick={() =>
@@ -1364,9 +1375,9 @@ export default function BdlReceptionPage() {
                   <PackagePlus className="w-6 h-6" />
                 </span>
                 <div className="flex-1">
-                  <p className="label-caps text-primary">Produit inconnu</p>
+                  <p className="label-caps text-primary">Code inconnu</p>
                   <h3 className="text-[18px] font-extrabold text-text-primary mt-1">
-                    Créer la fiche
+                    Carton ou unité ?
                   </h3>
                   <p className="text-[11px] font-mono bg-cream text-text-tertiary inline-block px-2 py-1 rounded-lg mt-2">
                     {createModal.code}
@@ -1378,11 +1389,53 @@ export default function BdlReceptionPage() {
               </div>
 
               <p className="text-[12.5px] text-text-secondary mt-3 leading-relaxed">
-                Ce code-barres ne correspond à aucun produit du catalogue.
-                Remplis la fiche, ou indique que c&apos;est un carton (ex 24 bouteilles).
+                Indique d&apos;abord le type pour faciliter la suite.
               </p>
 
-              {/* Bascule carton learn — pour scanner d'abord un produit interne */}
+              {/* Choix Carton vs Unité — 2 cards égales */}
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setLearnCartonModal({
+                      code: createModal.code,
+                      step: "qty",
+                      qty: 0,
+                    });
+                    setCreateModal(null);
+                  }}
+                  className="bg-gold-soft text-primary-dark rounded-2xl py-5 flex flex-col items-center gap-2 border-2 border-gold/30 active:scale-95 transition-transform"
+                >
+                  <PackageCheck className="w-7 h-7" />
+                  <span className="font-extrabold text-[14px]">Carton</span>
+                  <span className="text-[10.5px] font-medium opacity-80">
+                    plusieurs unités
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    // Auto-focus le nom après 50ms (laisse le DOM se peindre)
+                    setTimeout(() => {
+                      document
+                        .getElementById("create-prod-nom-input")
+                        ?.focus();
+                    }, 50);
+                  }}
+                  className="bg-cream text-primary rounded-2xl py-5 flex flex-col items-center gap-2 border-2 border-rule active:scale-95 transition-transform"
+                >
+                  <PackagePlus className="w-7 h-7" />
+                  <span className="font-extrabold text-[14px]">Unité</span>
+                  <span className="text-[10.5px] font-medium opacity-80">
+                    1 produit
+                  </span>
+                </button>
+              </div>
+
+              <p className="text-[11px] text-text-tertiary text-center mt-4 mb-2">
+                Pour 1 unité, remplis la fiche ci-dessous · Pour un carton,
+                tap le bouton or
+              </p>
+
+              {/* Bascule carton — bouton secondaire texte (au cas où user a déjà tap unité) */}
               <button
                 onClick={() => {
                   setLearnCartonModal({
@@ -1392,7 +1445,7 @@ export default function BdlReceptionPage() {
                   });
                   setCreateModal(null);
                 }}
-                className="w-full mt-3 bg-gold-soft text-primary-dark rounded-2xl py-3 inline-flex items-center justify-center gap-2 font-bold border border-gold/40 active:scale-[0.99]"
+                className="hidden"
               >
                 <PackageCheck className="w-5 h-5" />
                 C&apos;est un carton (pas une unité)
@@ -1404,11 +1457,24 @@ export default function BdlReceptionPage() {
                     Nom du produit
                   </span>
                   <input
+                    id="create-prod-nom-input"
                     value={newProdNom}
                     onChange={(e) => setNewProdNom(e.target.value)}
+                    onFocus={(e) => {
+                      // Scroll le champ vers le centre pour éviter
+                      // que le clavier iOS le cache (340ms = durée
+                      // approximative d'ouverture du clavier).
+                      setTimeout(
+                        () =>
+                          e.target.scrollIntoView({
+                            block: "center",
+                            behavior: "smooth",
+                          }),
+                        340
+                      );
+                    }}
                     placeholder="ex : Bricks tunisiens x10"
                     className="input-field"
-                    autoFocus
                   />
                 </label>
 
