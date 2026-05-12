@@ -297,7 +297,10 @@ export default function V2AdminDashboardPage() {
                     ease: [0.22, 0.61, 0.36, 1],
                     delay: idx * 0.05,
                   }}
-                  className="bg-white border border-rule rounded-[20px] shadow-card overflow-hidden"
+                  className="bg-white border border-rule rounded-[20px] shadow-card overflow-hidden active:scale-[0.99] transition-transform cursor-pointer"
+                  onClick={() => router.push(`/v2/stock?depot=${s.depot.id}`)}
+                  role="link"
+                  aria-label={`Voir le stock du dépôt ${s.depot.nom}`}
                 >
                   {/* C2-F — ruban couleur identifiant le dépôt */}
                   <div

@@ -24,6 +24,7 @@ import { dataMode } from "@/lib/db";
 import { DepotSwitcher } from "./DepotSwitcher";
 import { V2Logo } from "./V2Logo";
 import { AdminMenu } from "./AdminMenu";
+import { AssistantFab } from "./AssistantFab";
 
 interface NavItem {
   label: string;
@@ -148,35 +149,42 @@ export function V2Shell({
   return (
     <div className="min-h-screen bg-cream">
       <div className="mx-auto w-full max-w-[460px] min-h-screen relative bg-cream">
-        {/* HEADER */}
-        <header className="sticky top-0 z-30 bg-cream/95 backdrop-blur-md border-b border-rule">
-          <div className="flex items-center justify-between gap-2 px-4 py-3 safe-top">
+        {/* HEADER — refonte L99 : 3 zones (logo+identité / dépôt / actions admin),
+            une ligne, breathing room, hiérarchie claire (logo-name-role). */}
+        <header className="sticky top-0 z-30 bg-cream/92 backdrop-blur-xl border-b border-rule/60">
+          <div className="flex items-center gap-2.5 px-4 pt-3 pb-3 safe-top">
+            {/* Bloc identité — clickable vers accueil */}
             <Link
               href="/v2"
-              className="flex items-center gap-2 min-w-0"
+              className="flex items-center gap-2.5 min-w-0 flex-1 active:opacity-70 transition-opacity"
               aria-label="Accueil Salam Stock"
             >
-              <V2Logo size={28} />
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
-                  Salam Stock
+              <V2Logo size={32} />
+              <div className="min-w-0 leading-tight">
+                <p className="text-[14px] font-extrabold text-text-primary tracking-tight truncate">
+                  {employe.prenom}
                 </p>
-                <p className="text-[11px] text-text-tertiary truncate">
-                  {employe.prenom} {employe.nom} · {employe.role}
+                <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-text-secondary truncate">
+                  {employe.role === "admin"
+                    ? "Admin"
+                    : employe.role === "manager"
+                      ? "Manager"
+                      : employe.role}
+                  {depot ? ` · ${depot.nom}` : ""}
                 </p>
               </div>
             </Link>
-            <div className="flex items-center gap-2">
-              <DepotSwitcher />
-              <AdminMenu role={employe.role} />
-              <button
-                onClick={logout}
-                className="w-9 h-9 rounded-full bg-white border border-rule flex items-center justify-center text-text-secondary"
-                aria-label="Déconnexion"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+
+            {/* Actions à droite — DepotSwitcher en discret, hamburger admin proéminent, logout neutre */}
+            <DepotSwitcher />
+            <AdminMenu role={employe.role} />
+            <button
+              onClick={logout}
+              className="w-9 h-9 rounded-full bg-white border border-rule flex items-center justify-center text-text-secondary active:scale-95 transition-transform"
+              aria-label="Déconnexion"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
           {mode === "local" && (
             <div className="bg-warning-soft text-warning text-[10px] font-bold uppercase tracking-wider text-center py-1">
@@ -280,6 +288,9 @@ export function V2Shell({
             </div>
           </nav>
         )}
+
+        {/* FAB Assistant IA — admin only, sticky au-dessus du nav */}
+        <AssistantFab role={employe.role} hideOnNoNav={hideNav} />
 
         {/* PLUS SHEET */}
         <AnimatePresence>

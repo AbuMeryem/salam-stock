@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -110,40 +111,33 @@ export function AdminMenu({ role }: AdminMenuProps) {
 
   if (role !== "admin") return null;
 
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="w-9 h-9 rounded-full bg-primary text-white border border-primary flex items-center justify-center"
-        aria-label="Menu admin"
-        title="Menu admin"
-      >
-        <Menu className="w-4 h-4" />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.div
-              key="admin-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 z-[80] bg-primary-dark/55 backdrop-blur-[6px]"
-            />
-            <motion.aside
-              key="admin-drawer"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 32, stiffness: 320 }}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Menu admin"
-              className="fixed inset-y-0 right-0 z-[81] w-[88%] max-w-[380px] bg-white shadow-card-lg flex flex-col"
-            >
+  // Le drawer est portalé sur <body> pour échapper au stacking-context
+  // du parent relative de V2Shell. Sans ça, sur certains rendus iOS le
+  // drawer se rendait derrière le contenu malgré z-[80].
+  const drawer = (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            key="admin-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-[200] bg-primary-dark/55 backdrop-blur-[6px]"
+          />
+          <motion.aside
+            key="admin-drawer"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 32, stiffness: 320 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu admin"
+            className="fixed inset-y-0 right-0 z-[201] w-[88%] max-w-[380px] bg-white shadow-card-lg flex flex-col"
+          >
               {/* HEADER */}
               <div className="safe-top px-5 pb-3 flex items-center justify-between border-b border-rule">
                 <div className="flex items-center gap-2">
@@ -213,6 +207,19 @@ export function AdminMenu({ role }: AdminMenuProps) {
           </>
         )}
       </AnimatePresence>
+  );
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-9 h-9 rounded-full bg-primary text-white border border-primary flex items-center justify-center"
+        aria-label="Menu admin"
+        title="Menu admin"
+      >
+        <Menu className="w-4 h-4" />
+      </button>
+      {typeof document !== "undefined" && createPortal(drawer, document.body)}
     </>
   );
 }
