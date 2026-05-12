@@ -1100,7 +1100,7 @@ export default function BdlReceptionPage() {
 
       {/* Carton learn modal — apprentissage liaison carton↔produit */}
       <AnimatePresence>
-        {learnCartonModal && (
+        {learnCartonModal && !cartonScannerOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
