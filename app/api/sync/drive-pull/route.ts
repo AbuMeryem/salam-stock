@@ -50,15 +50,25 @@ interface DriveOrderItem {
 
 interface DriveOrder {
   id: string;
+  user_id: string | null;
   status: string;
-  customer_name: string | null;
   customer_phone: string | null;
   customer_email: string | null;
-  pickup_slot_at: string | null;
-  total_ttc: number;
+  pickup_slot_id: string | null;
+  total_cents: number;
   payment_method: string | null;
   items: DriveOrderItem[] | null;
   created_at: string;
+}
+
+interface DriveProfile {
+  id: string;
+  full_name: string | null;
+}
+
+interface DrivePickupSlot {
+  id: string;
+  slot_start: string;
 }
 
 export async function GET() {
@@ -97,11 +107,13 @@ async function runSync() {
   });
 
   // 1. Récupère les orders Drive payées/en cours dans les 7 derniers jours
+  //    Schéma réel Drive : pas de customer_name (à joindre via profiles.full_name)
+  //    total_cents (pas total_ttc), pickup_slot_id (pas pickup_slot_at)
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const { data: orders, error: errOrders } = await drive
     .from("orders")
     .select(
-      "id, status, customer_name, customer_phone, customer_email, pickup_slot_at, total_ttc, payment_method, items, created_at"
+      "id, user_id, status, customer_phone, customer_email, pickup_slot_id, total_cents, payment_method, items, created_at"
     )
     .gte("created_at", since)
     .in("status", ["paid", "preparing", "ready", "completed"])
@@ -117,6 +129,32 @@ async function runSync() {
   const rows = (orders ?? []) as unknown as DriveOrder[];
   if (rows.length === 0) {
     return NextResponse.json({ synced: 0, message: "Aucune order Drive récente" });
+  }
+
+  // 1b. Fetch les profils correspondants pour récupérer full_name
+  const userIds = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]));
+  const profileMap = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: profs } = await drive
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", userIds);
+    for (const p of (profs ?? []) as unknown as DriveProfile[]) {
+      profileMap.set(p.id, p.full_name ?? "");
+    }
+  }
+
+  // 1c. Fetch les slots pour récupérer slot_start (créneau de retrait)
+  const slotIds = Array.from(new Set(rows.map((r) => r.pickup_slot_id).filter(Boolean) as string[]));
+  const slotMap = new Map<string, string>();
+  if (slotIds.length > 0) {
+    const { data: slots } = await drive
+      .from("pickup_slots")
+      .select("id, slot_start")
+      .in("id", slotIds);
+    for (const s of (slots ?? []) as unknown as DrivePickupSlot[]) {
+      slotMap.set(s.id, s.slot_start);
+    }
   }
 
   // 2. Récupère le dépôt Particulier (destination par défaut)
@@ -164,17 +202,24 @@ async function runSync() {
     if (!statut) continue;
 
     // Upsert header
+    const clientNom =
+      (o.user_id ? profileMap.get(o.user_id) : null) ||
+      o.customer_email ||
+      "Client Drive";
+    const creneauRetrait =
+      (o.pickup_slot_id ? slotMap.get(o.pickup_slot_id) : null) ??
+      new Date(Date.now() + 2 * 3600_000).toISOString();
+
     const { error: errHeader } = await stock.from("commandes_drive").upsert(
       {
         id: o.id,
         numero_commande: o.id,
-        client_nom: o.customer_name ?? "—",
+        client_nom: clientNom,
         client_telephone: o.customer_phone,
         client_email: o.customer_email,
-        creneau_retrait:
-          o.pickup_slot_at ?? new Date(Date.now() + 2 * 3600_000).toISOString(),
+        creneau_retrait: creneauRetrait,
         statut,
-        total_ttc: o.total_ttc,
+        total_ttc: (o.total_cents ?? 0) / 100,
         mode_paiement: o.payment_method === "in_store" ? "en_magasin" : "stripe",
         created_at: o.created_at,
       },
