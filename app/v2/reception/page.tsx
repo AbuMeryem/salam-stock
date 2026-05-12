@@ -101,6 +101,9 @@ export default function V2ReceptionPage() {
   const [searchResults, setSearchResults] = useState<Produit[]>([]);
   const [pendingProduitForCarton, setPendingProduitForCarton] = useState<Produit | null>(null);
   const [recognitionOpen, setRecognitionOpen] = useState(false);
+  /** Scanner ré-ouvert dans le mode apprentissage carton pour scanner
+   *  un produit interne et l'identifier par son EAN. */
+  const [learnScannerOpen, setLearnScannerOpen] = useState(false);
 
   // ─── Fetch BDL today + en cours ─────────────────────────────
   useEffect(() => {
@@ -368,6 +371,24 @@ export default function V2ReceptionPage() {
     setPendingProduitForCarton(null);
     setCartonQty(0);
     setRecognitionOpen(false);
+    setLearnScannerOpen(false);
+  }
+
+  /** Handler scan en mode apprentissage carton : scanner le produit
+   *  interne du carton pour récupérer son EAN. Si reconnu en catalogue
+   *  → on bind direct via handleLearnUnitFor (qui appelle learnCarton).
+   *  Sinon → on bascule en search par nom (ou IA recognition). */
+  async function handleScanForLearnInternal(code: string) {
+    setLearnScannerOpen(false);
+    const p = await findProduitByEan(code);
+    if (p) {
+      handleLearnUnitFor(p);
+      return;
+    }
+    toast.warning(
+      `EAN ${code} inconnu — cherche par nom ou utilise la reconnaissance IA.`,
+      { duration: 3500 }
+    );
   }
 
   async function handleRecognitionAccept(rec: RecognitionResult) {
@@ -707,6 +728,13 @@ export default function V2ReceptionPage() {
         onClose={() => setScannerOpen(false)}
         onScan={(code) => handleScanRef.current?.(code)}
       />
+      {/* Scanner dédié au mode apprentissage carton — scan d'un produit
+          interne pour identifier le carton inconnu via son EAN. */}
+      <BarcodeScanner
+        open={learnScannerOpen}
+        onClose={() => setLearnScannerOpen(false)}
+        onScan={(code) => void handleScanForLearnInternal(code)}
+      />
       <PhotoCapture
         open={photoOpen}
         onClose={() => setPhotoOpen(false)}
@@ -831,6 +859,15 @@ export default function V2ReceptionPage() {
                     ? "Quel produit est dans le carton ?"
                     : "Quel produit ?"}
                 </h3>
+                {learnMode === "carton-unit-scan" && (
+                  <button
+                    onClick={() => setLearnScannerOpen(true)}
+                    className="w-full mt-3 bg-primary text-white rounded-2xl py-3 inline-flex items-center justify-center gap-2 font-bold active:scale-[0.99]"
+                  >
+                    <ScanBarcode className="w-5 h-5" />
+                    Scanner un produit interne
+                  </button>
+                )}
                 <div className="relative mt-3">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
                   <input

@@ -309,7 +309,18 @@ export default function BdlReceptionPage() {
         scanne_par: employe?.id ?? null,
       });
 
-      toast.success(`Fiche créée : ${nom} · ${qty} unité${qty > 1 ? "s" : ""} reçue${qty > 1 ? "s" : ""}`, {
+      // Push iPhone admin — l'employé vient de créer une fiche produit
+      // pendant une réception, l'admin doit la valider (prix notamment)
+      void import("@/lib/notifications").then((m) =>
+        m.pushToAdmins({
+          title: `🆕 Nouvelle fiche produit créée`,
+          body: `${nom} (EAN ${createModal.code}) par ${employe?.prenom ?? "employé"}. Prix ${prix.toFixed(2)}€ à valider.`,
+          url: "/v2/stock",
+          tag: `prod-${produitId}`,
+        })
+      );
+
+      toast.success(`Fiche créée : ${nom} · ${qty} unité${qty > 1 ? "s" : ""} reçue${qty > 1 ? "s" : ""} · admin notifié`, {
         duration: 2400,
       });
       setCreateModal(null);
@@ -339,7 +350,7 @@ export default function BdlReceptionPage() {
       toast.error(error.message);
       return;
     }
-    // Notif mock vers admin (l'endpoint /api/notify accepte n'importe quel kind)
+    // Notif interne legacy
     void fetch("/api/notify", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -353,7 +364,18 @@ export default function BdlReceptionPage() {
         },
       }),
     }).catch(() => {});
-    toast.success("Surplus signalé à Otmane et Ahmed", { duration: 2200 });
+    // Push iPhone Otmane + Ahmed
+    void import("@/lib/notifications").then((m) =>
+      m.pushToAdmins({
+        title: `📦 Surplus ${bdl.fournisseurs?.nom ?? "fournisseur"}`,
+        body: `${surplusModal.produitNom} × ${surplusQty} non commandé sur ${bdl.numero_bdl}`,
+        url: "/v2/admin/alertes-surplus",
+        tag: `surplus-${bdl.id}-${surplusModal.code}`,
+      })
+    );
+    toast.success("Surplus signalé (push iPhone admin envoyée)", {
+      duration: 2400,
+    });
     setSurplusModal(null);
   }
 
@@ -472,7 +494,7 @@ export default function BdlReceptionPage() {
           receptionne_le: new Date().toISOString(),
         })
         .eq("id", bdl.id);
-      // 3. Notif (mock WhatsApp recap)
+      // 3. Notif legacy
       void fetch("/api/notify", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -488,7 +510,16 @@ export default function BdlReceptionPage() {
           },
         }),
       }).catch(() => {});
-      toast.success("Réception validée. Stock mis à jour.");
+      // 4. Push iPhone admin — réception complète, stock mis à jour
+      void import("@/lib/notifications").then((m) =>
+        m.pushToAdmins({
+          title: `✅ Réception ${bdl.fournisseurs?.nom ?? "BDL"} validée`,
+          body: `${bdl.numero_bdl} · ${bdl.depots?.nom ?? "?"} · ${progression.scanned}/${progression.total} unités · par ${employe?.prenom ?? "employé"}`,
+          url: "/v2/reception",
+          tag: `bdl-done-${bdl.id}`,
+        })
+      );
+      toast.success("Réception validée. Admin notifié.");
       router.replace("/v2/reception");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur validation");

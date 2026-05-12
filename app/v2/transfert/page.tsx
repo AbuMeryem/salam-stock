@@ -150,6 +150,15 @@ export default function V2TransfertPage() {
         `[Transfert] succès en ${Date.now() - startedAt}ms`,
         result?.id
       );
+      // Push iPhone admin — transfert audit
+      void import("@/lib/notifications").then((m) =>
+        m.pushToAdmins({
+          title: `🔄 Transfert ${source.nom} → ${destination.nom}`,
+          body: `${produit.nom} × ${quantite} · par ${employe.prenom ?? "employé"}`,
+          url: "/v2/admin/activite",
+          tag: `trf-${result?.id ?? Date.now()}`,
+        })
+      );
       toast.success(
         `Transfert validé : ${quantite} × ${produit.nom} de ${source.nom} → ${destination.nom}`
       );

@@ -125,9 +125,22 @@ export default function V2InventairePage() {
       const conf =
         totalTheo > 0 ? Math.max(0, 100 - (totalEcart / totalTheo) * 100) : 100;
       const progress = `${fillable.length}/${mineAssigned.length}`;
-      if (conf < 95) {
+      const lowConf = conf < 95;
+      // Push iPhone admin — inventaire complété (urgent si conformité basse)
+      void import("@/lib/notifications").then((m) =>
+        m.pushToAdmins({
+          title: lowConf
+            ? `⚠️ Inventaire ${depot?.nom ?? ""} · conformité ${conf.toFixed(0)}%`
+            : `✅ Inventaire ${depot?.nom ?? ""} validé`,
+          body: `${employe.prenom ?? "Employé"} a compté ${progress} produits · ${totalEcart} unités d'écart`,
+          url: "/v2/inventaire/historique",
+          tag: `inv-done-${Date.now()}`,
+          urgent: lowConf,
+        })
+      );
+      if (lowConf) {
         toast.warning(
-          `Inventaire ${progress} validé · conformité ${conf.toFixed(1)}% · Otmane notifié.`,
+          `Inventaire ${progress} validé · conformité ${conf.toFixed(1)}% · Otmane + Ahmed notifiés.`,
           { id: "inv-done" }
         );
         await fetch("/api/notify", {
@@ -147,7 +160,7 @@ export default function V2InventairePage() {
         }).catch(() => {});
       } else {
         toast.success(
-          `Inventaire ${progress} validé · conformité ${conf.toFixed(1)}%.`,
+          `Inventaire ${progress} validé · conformité ${conf.toFixed(1)}% · admin notifié.`,
           { id: "inv-done" }
         );
       }
