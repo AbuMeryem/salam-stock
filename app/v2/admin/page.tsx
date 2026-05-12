@@ -8,10 +8,13 @@ import {
   ArrowDownToLine,
   ArrowLeft,
   ArrowUpRight,
+  Bell,
+  Boxes,
   Building2,
   ClipboardCheck,
   Repeat2,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { V2Shell } from "@/components/v2/V2Shell";
 import { BackButton } from "@/components/v2/BackButton";
@@ -266,23 +269,21 @@ export default function V2AdminDashboardPage() {
       ) : (
         /* ───────── VUE STOCK ───────── */
         <>
-          {/* REVENUE CHART — courbes CA Particulier / Pro / Global */}
-          <section className="px-5 mt-5">
+          {/* ┌─ ACTIVITÉ — CA temps réel ─┐ */}
+          <p className="px-5 mt-6 section-eyebrow">
+            <TrendingUp className="w-3 h-3" />
+            Activité du jour
+          </p>
+          <section className="px-5 mt-2">
             <RevenueChart data={revenue} initialSeries="global" initialPeriod={30} />
           </section>
 
-          {/* CANAUX D'ALERTE — Push + Email recap */}
-          <section className="px-5 mt-5 grid grid-cols-1 gap-3">
-            <PushNotifCard employeId={employe?.id ?? null} />
-            <EmailRecapCard defaultTo="ceo@hamy.studio" />
-            <StockEditWindowCard
-              employeId={employe?.id ?? null}
-              employeRole={employe?.role}
-            />
-          </section>
-
-          {/* DEPOT GRID */}
-          <section className="px-5 mt-5 space-y-3">
+          {/* ┌─ DÉPÔTS — état multi-dépôts ─┐ */}
+          <p className="px-5 mt-7 section-eyebrow">
+            <Boxes className="w-3 h-3" />
+            État des dépôts
+          </p>
+          <section className="px-5 mt-2 space-y-3">
             {stats.map((s, idx) => {
               const isEntrepot = s.depot.type === "entrepot";
               return (
@@ -528,13 +529,27 @@ export default function V2AdminDashboardPage() {
               </div>
             </section>
           )}
+
+          {/* ┌─ COMMUNICATION — notifs, emails, accès édition ─┐ */}
+          <p className="px-5 mt-8 section-eyebrow">
+            <Bell className="w-3 h-3" />
+            Communication & notifs
+          </p>
+          <section className="px-5 mt-2 grid grid-cols-1 gap-3">
+            <PushNotifCard employeId={employe?.id ?? null} />
+            <EmailRecapCard defaultTo="ceo@hamy.studio" />
+            <StockEditWindowCard
+              employeId={employe?.id ?? null}
+              employeRole={employe?.role}
+            />
+          </section>
+
+          {/* Recap WhatsApp 19h — mockup pour la démo */}
+          <section className="px-5 mt-3 mb-8">
+            <WhatsAppRecapCard />
+          </section>
         </>
       )}
-
-      {/* Recap WhatsApp 19h — mockup pour la démo */}
-      <section className="px-5 mt-6 mb-8">
-        <WhatsAppRecapCard />
-      </section>
     </V2Shell>
   );
 }
