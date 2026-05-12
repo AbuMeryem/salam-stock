@@ -24,6 +24,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Salam Stock",
   },
+  // mobile-web-app-capable est le standard moderne (apple-mobile-web-app-capable
+  // est deprecated). Next 14 ne le génère pas auto, on le pousse en `other`.
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   openGraph: {
     type: "website",
     locale: "fr_FR",
