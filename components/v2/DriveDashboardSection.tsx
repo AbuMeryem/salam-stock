@@ -36,6 +36,12 @@ const STATUT_META: Record<
   CommandeDriveStatus,
   { label: string; icon: typeof Clock; bg: string; fg: string }
 > = {
+  a_preparer: {
+    label: "À préparer",
+    icon: Clock,
+    bg: "bg-danger-soft",
+    fg: "text-danger",
+  },
   en_preparation: {
     label: "En préparation",
     icon: Clock,
@@ -187,6 +193,7 @@ export function DriveDashboardSection() {
   // KPI par statut
   const byStatut = useMemo(() => {
     const counts: Record<CommandeDriveStatus, number> = {
+      a_preparer: 0,
       en_preparation: 0,
       pret: 0,
       retire: 0,

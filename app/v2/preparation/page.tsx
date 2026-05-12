@@ -38,7 +38,7 @@ interface CommandeWithLignes extends CommandeDrive {
   lignes: CommandeDriveLigne[];
 }
 
-type KanbanStatut = "en_preparation" | "pret" | "retire";
+type KanbanStatut = "a_preparer" | "en_preparation" | "pret" | "retire";
 
 const COLUMNS: Array<{
   key: KanbanStatut;
@@ -48,6 +48,14 @@ const COLUMNS: Array<{
   accent: string;
   textAccent: string;
 }> = [
+  {
+    key: "a_preparer",
+    label: "À préparer",
+    next: "en_preparation",
+    nextLabel: "Accepter la commande",
+    accent: "bg-danger-soft border-danger/30",
+    textAccent: "text-danger",
+  },
   {
     key: "en_preparation",
     label: "En préparation",
@@ -145,7 +153,12 @@ export default function V2PreparationKanbanPage() {
     const map = new Map<KanbanStatut, CommandeWithLignes[]>();
     for (const col of COLUMNS) map.set(col.key, []);
     for (const c of commandes) {
-      if (c.statut === "en_preparation" || c.statut === "pret" || c.statut === "retire") {
+      if (
+        c.statut === "a_preparer" ||
+        c.statut === "en_preparation" ||
+        c.statut === "pret" ||
+        c.statut === "retire"
+      ) {
         map.get(c.statut)!.push(c);
       }
     }
@@ -160,7 +173,12 @@ export default function V2PreparationKanbanPage() {
     setUpdating(true);
     try {
       await setCommandeStatut(cmd.id, target);
-      const label = target === "pret" ? "marquée prête" : "marquée retirée";
+      const label =
+        target === "en_preparation"
+          ? "acceptée · en préparation"
+          : target === "pret"
+            ? "marquée prête"
+            : "marquée retirée";
       toast.success(`${cmd.numero_commande} ${label}`, { duration: 1800 });
       setActionFor(null);
       void reload();
@@ -333,6 +351,16 @@ export default function V2PreparationKanbanPage() {
                 </button>
               </div>
               <div className="space-y-2 mt-4">
+                {actionFor.statut === "a_preparer" && (
+                  <button
+                    onClick={() => void advance(actionFor, "en_preparation")}
+                    disabled={updating}
+                    className="w-full bg-primary text-white rounded-[18px] py-3.5 px-5 flex items-center justify-center gap-2 font-bold shadow-card active:scale-[0.99] disabled:opacity-50"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    Accepter et commencer la préparation
+                  </button>
+                )}
                 {actionFor.statut === "en_preparation" && (
                   <button
                     onClick={() => void advance(actionFor, "pret")}

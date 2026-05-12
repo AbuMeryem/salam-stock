@@ -20,6 +20,7 @@ export type SortieType =
 export type ReceptionStatus = "en_cours" | "validee";
 export type InventaireStatus = "assigne" | "compte" | "valide";
 export type CommandeDriveStatus =
+  | "a_preparer"
   | "en_preparation"
   | "pret"
   | "retire"
