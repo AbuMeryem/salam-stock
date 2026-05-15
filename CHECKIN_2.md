@@ -194,6 +194,75 @@ Si l'étape G passe (avec contournement ou Mission 4) :
 
 ---
 
+## 7bis. Mission 3.5 — Hack UUID admin appliqué (2026-05-16)
+
+**Décision validée** : Option C — hack hardcodé 15 min PUIS Mission 4
+propre post-validation E2E manuelle.
+
+**Étape 1 — UUID récupéré via Auth Admin REST** :
+```
+GET https://tltmermqodelorthtbre.supabase.co/auth/v1/admin/users
+→ digitalwebmastertlse@gmail.com → id = 5b58e718-d1e4-4e1d-8213-7d3792de1ff6
+```
+
+**Étape 2 — Fichier patché** :
+`/Users/mac/salam-stock/app/staff/preparation/components/PreparationWorkflow.tsx`
+- Lignes ~46-62 : constante `HARDCODED_ADMIN_UUID` + helper
+  `getUserUuid(zustandId)` (forward-compat Mission 4 : utilise le
+  zustandId si c'est déjà un UUID, sinon fallback hardcodé)
+- Ligne ~179 (`markLineWeighed`) : `user_id: getUserUuid(currentUser?.id)`
+- Ligne ~223 (`finalizePreparation`) : idem
+- Tag `TODO_DEMO_10_JUIN` partout (grep facile avant retrait)
+
+**Étape 3 — BLOCKERS.md** :
+Entrée B9 ajoutée (commit salamarket-drive `38722f8`). Décrit le
+pourquoi, l'impact démo (tous les pese_par seront l'admin), le fix
+prévu Mission 4.
+
+**Étape 4 — Build** : ✅ `npm run build` vert (Next.js 14.2.35,
+toutes routes statiques + dynamiques compilées).
+
+**Étape 5 — Commits** :
+- salam-stock `c93b191` (PreparationWorkflow.tsx + helper)
+- salamarket-drive `38722f8` (BLOCKERS B8 résolu + B9 ajouté)
+
+---
+
+## 7ter. Script E2E à dérouler MAINTENANT (manuel)
+
+Toutes les pièces sont prêtes. Voici les **URLs précises** :
+
+| Étape | URL | Action | Résultat attendu |
+|---|---|---|---|
+| A.1 | http://localhost:8081 | Scroll catalogue | 4 produits visibles : Merguez 22 €/kg, Kefta 18 €/kg, Brochettes 16 €/kg, Poulet **15 €** (PAS 0 €) |
+| A.2 | http://localhost:8081/produit/00000000-0030-0000-0000-000000000001 | Stepper 1.0 kg → "Ajouter" | Toast + badge panier 1 |
+| A.3 | http://localhost:8081/produit/00000000-0030-0000-0000-000000000004 | Click bracket 1.2-1.5 kg → "Ajouter" | Toast + badge panier 2 |
+| B | http://localhost:8081/panier | Vérifier le détail | Total estimé `37,00 €`, bandeau jaune "Vous serez débité du poids réellement préparé", lien `/drive-au-poids` |
+| B.2 | http://localhost:8081/creneaux | Choisir un créneau retrait | Continuer |
+| C | http://localhost:8081/paiement | Saisir carte `4242 4242 4242 4242` `12/30` `123` → "Pré-autoriser 44,40 €" | Stripe Elements charge ; après confirmation → redirect `/commande/confirmee/<id>` |
+| D | SQL Editor | `select * from commandes_drive order by created_at desc limit 1` | `stripe_payment_intent_id` non null, `montant_autorise_ttc ≈ 44.40`, `statut_paiement = 'autorise'` |
+| E | https://dashboard.stripe.com/test/payments | Click le dernier PI | `requires_capture`, amount 4440, capture_method manual, metadata.commande_id = UUID |
+| F.1 | http://localhost:3000/login | Connexion compte staff | Redirection `/staff/preparation` |
+| F.2 | http://localhost:3000/staff/preparation | Voir la commande | Card avec le numéro D2026-… |
+| F.3 | (click) | Saisir poids merguez 1.07 kg | Badge VERT `auto_accept` (+7 %) |
+| F.4 | | Sélectionner bracket 1 pour le poulet | Selected |
+| F.5 | | "Finaliser & capturer" | **Avec le hack 3.5 : PLUS de 400 sur user_id** — la capture passe via Stripe |
+| G | SQL Editor | `select statut_paiement, montant_capture_ttc from commandes_drive where id = '<…>'` | `statut_paiement = 'capture'`, `montant_capture_ttc ≈ 38.54` (1.07 × 22 + 15) |
+| G.2 | SQL Editor | `select * from drive_ecarts_poids` | 1 ligne pour la merguez, `action = 'auto_accept'`, `ecart_pct ≈ 7`, `decision_par = '5b58e718-…'` (UUID admin hardcodé) |
+| H | Dashboard Stripe | Le PI | `succeeded`, `amount_captured = 3854`, balance_transaction visible |
+
+> ⚠ La marge 20 % englobe le bracket (cf. §5 du CHECKIN_2 initial),
+> donc le `montant_autorise_ttc` sera `44.40` (37 × 1.20) et non
+> `41.40` (26.40 + 15). Ce n'est pas un bug fonctionnel, juste une
+> marge un peu plus large que strictement nécessaire sur le bracket.
+
+**Quand tu as déroulé** :
+- ✅ Étapes A-H toutes vertes → pingue, on enchaîne Mission 4
+  (Supabase Auth propre, retrait du hack)
+- ❌ Une étape casse → log précisément où, on debug ensemble avant Mission 4
+
+---
+
 ## 8. Background jobs en cours
 
 | Job | Status | Pour info |
