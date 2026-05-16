@@ -326,6 +326,76 @@ Total tests **93/93 passants** (85 → 93).
 - `200d3dc` (salamarket-drive `main`) : helper + propagation 5 endroits + tests
 - `b58e7f0` (salam-stock `chore/drive-products-view`) : lecture `montant_autorise_ttc` stocké
 
+---
+
+## 7quinquies — Patch CORS (bug Étape C bis 2026-05-16)
+
+### Bug
+
+Front Vite (`localhost:8081`) appelle l'API Next.js (`localhost:3000`) →
+cross-origin → preflight OPTIONS → pas de `Access-Control-Allow-Origin`
+sur la response Next.js → browser bloque la requête réelle. `<DriveStripePayment>`
+ne reçoit jamais le `client_secret`, aucun PI créé, mais la commande
+reste en DB avec `stripe_payment_intent_id=NULL` (trompeur).
+
+### Fix
+
+**Option 3 du brief retenue** : `middleware.ts` global à la racine
+salam-stock (matcher `/api/stripe/:path*`) plutôt que dupliquer les
+handlers OPTIONS dans chaque route.
+
+- Whitelist d'origines (pas de `*` car potentiellement credentials) :
+  - `http://localhost:8080` (Vite default)
+  - `http://localhost:8081` (Vite fallback)
+  - `http://localhost:5173` (Vite legacy)
+  - `https://salamarket-drive.vercel.app` (prod future)
+- OPTIONS → 204 + headers
+- POST → on laisse Next.js traiter, on injecte `access-control-allow-origin`
+  + `access-control-allow-credentials` sur la response sortante
+- Webhook `/api/stripe/webhook` : Stripe envoie en serveur-à-serveur,
+  pas d'Origin → headers CORS non posés (mais 200 OK normal). Pas de
+  régression.
+
+### Tests CORS
+
+```
+$ curl -i -X OPTIONS http://localhost:3000/api/stripe/create-payment-intent \
+    -H "Origin: http://localhost:8081" -H "Access-Control-Request-Method: POST"
+HTTP/1.1 204
+access-control-allow-origin: http://localhost:8081
+access-control-allow-methods: POST, OPTIONS
+access-control-allow-headers: Content-Type, Authorization
+access-control-allow-credentials: true
+```
+✅ Origin whitelist → ACAO présent.
+
+```
+$ curl -i -X OPTIONS http://localhost:3000/api/stripe/create-payment-intent \
+    -H "Origin: http://malicious.example.com" -H "Access-Control-Request-Method: POST"
+HTTP/1.1 204
+(pas de access-control-allow-origin)
+```
+✅ Origin hostile → ACAO absent → browser bloque.
+
+```
+$ curl -i -X POST http://localhost:3000/api/stripe/create-payment-intent \
+    -H "Origin: http://localhost:8081" -H "Content-Type: application/json" -d '{}'
+HTTP/1.1 400
+access-control-allow-origin: http://localhost:8081
+```
+✅ POST réel : 400 Zod attendu + ACAO injecté sur la response.
+
+### Action utilisateur
+
+Refresh `localhost:8081/paiement` (purge le preflight cache) et
+relancer l'ÉTAPE C. Le POST `/api/stripe/create-payment-intent` doit
+passer et retourner `200 OK` avec `clientSecret`.
+
+### Commit
+
+- `<à venir>` (salam-stock `chore/drive-products-view`) : `middleware.ts`
+  + redémarrage dev server
+
 **Quand tu as déroulé** :
 - ✅ Étapes A-H toutes vertes → pingue, on enchaîne Mission 4
   (Supabase Auth propre, retrait du hack)
