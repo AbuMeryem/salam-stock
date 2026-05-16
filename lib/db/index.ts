@@ -29,6 +29,7 @@ import type {
   InventaireTournant,
   CommandeDrive,
   CommandeDriveLigne,
+  ProduitUnitType,
   SortieType,
   ReceptionStatus,
 } from "@/lib/types/db";
@@ -955,6 +956,41 @@ export async function listLignesPourCommande(
     return data as CommandeDriveLigne[];
   }
   return SEED_COMMANDE_LIGNES.filter((l) => l.commande_id === commandeId);
+}
+
+/**
+ * Variante qui ramène en plus `unit_type` du produit (via embedded
+ * select PostgREST sur la FK produit_id → produits). Sert au Kanban
+ * pour compter les lignes à peser sans charger tout le catalogue.
+ *
+ * Retour : { ligne } + champ `produit_unit_type` aplati.
+ */
+export type CommandeDriveLigneWithUnitType = CommandeDriveLigne & {
+  produit_unit_type?: ProduitUnitType | null;
+};
+
+export async function listLignesPourCommandeAvecUnitType(
+  commandeId: string,
+): Promise<CommandeDriveLigneWithUnitType[]> {
+  const sb = supabase();
+  if (sb) {
+    const { data, error } = await sb
+      .from("commandes_drive_lignes")
+      .select("*, produits(unit_type)")
+      .eq("commande_id", commandeId);
+    if (error) throw error;
+    type Row = CommandeDriveLigne & {
+      produits?: { unit_type?: ProduitUnitType | null } | null;
+    };
+    return ((data ?? []) as Row[]).map((r) => ({
+      ...r,
+      produit_unit_type: r.produits?.unit_type ?? null,
+    }));
+  }
+  // Mode local seed : pas de jointure, on devine via SEED_PRODUITS
+  return SEED_COMMANDE_LIGNES.filter((l) => l.commande_id === commandeId).map(
+    (l) => ({ ...l, produit_unit_type: null }),
+  );
 }
 
 /**

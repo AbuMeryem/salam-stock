@@ -9,8 +9,10 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Lock,
   PackageCheck,
   PlayCircle,
+  Scale,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,18 +26,18 @@ import {
 } from "@/components/v2/ClientTypeBadge";
 import {
   listCommandesDrive,
-  listLignesPourCommande,
+  listLignesPourCommandeAvecUnitType,
   setCommandeStatut,
+  type CommandeDriveLigneWithUnitType,
 } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import type {
   CommandeDrive,
-  CommandeDriveLigne,
   ZonePreparationDrive,
 } from "@/lib/types/db";
 
 interface CommandeWithLignes extends CommandeDrive {
-  lignes: CommandeDriveLigne[];
+  lignes: CommandeDriveLigneWithUnitType[];
 }
 
 type KanbanStatut = "a_preparer" | "en_preparation" | "pret" | "retire";
@@ -121,11 +123,21 @@ export default function V2PreparationKanbanPage() {
     const enriched = await Promise.all(
       cmds.map(async (c) => ({
         ...c,
-        lignes: await listLignesPourCommande(c.id),
+        lignes: await listLignesPourCommandeAvecUnitType(c.id),
       }))
     );
-    // Garde uniquement les statuts kanban (filtre "annule" en dehors)
-    setCommandes(enriched.filter((c) => c.statut !== "annule"));
+    // Filtres :
+    //  - statut != 'annule' (commande annulée par client ou admin)
+    //  - statut_paiement != 'echec' (paiement Stripe a échoué — la
+    //    commande existe en DB mais ne doit pas apparaître au préparateur)
+    //  - les commandes legacy avec statut_paiement = null restent
+    //    visibles (paiement en magasin, Checkout hosted classique,
+    //    pas de Drive au poids)
+    setCommandes(
+      enriched.filter(
+        (c) => c.statut !== "annule" && c.statut_paiement !== "echec",
+      ),
+    );
     setLoading(false);
   }
 
@@ -266,6 +278,14 @@ export default function V2PreparationKanbanPage() {
                         )
                       );
                       const isFinal = col.key === "retire";
+                      // Drive au poids — badges Stripe + nb à peser
+                      const nbAPeser = cmd.lignes.filter(
+                        (l) =>
+                          l.produit_unit_type === "weight" ||
+                          l.produit_unit_type === "weight_bracket",
+                      ).length;
+                      const isPreAutorise = cmd.statut_paiement === "autorise";
+                      const isCapture = cmd.statut_paiement === "capture";
                       return (
                         <motion.div
                           key={cmd.id}
@@ -293,13 +313,40 @@ export default function V2PreparationKanbanPage() {
                           </div>
                           <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                             <ClientTypeBadgeGroup size="sm" types={types} />
+                            {nbAPeser > 0 && (
+                              <span
+                                title="Lignes au poids à peser"
+                                className="inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide bg-gold-soft text-primary-dark px-2 py-0.5 rounded-full"
+                              >
+                                <Scale className="w-3 h-3" aria-hidden />
+                                {nbAPeser} à peser
+                              </span>
+                            )}
                             <span className="text-[11px] text-text-secondary inline-flex items-center gap-1 ml-auto">
                               {prepares}/{totalLignes} préparés
-                              <PriceTag
-                                amount={cmd.total_ttc}
-                                decimals={0}
-                                className="ml-1"
-                              />
+                              {isPreAutorise ? (
+                                <span
+                                  title="Stripe pré-autorisé, capture après pesée"
+                                  className="ml-1 inline-flex items-center gap-1 text-[10.5px] font-bold bg-cream text-primary px-2 py-0.5 rounded-full"
+                                >
+                                  <Lock className="w-3 h-3" aria-hidden />
+                                  Pré-aut. {(cmd.montant_autorise_ttc ?? cmd.total_ttc).toFixed(0)} €
+                                </span>
+                              ) : isCapture ? (
+                                <span
+                                  title="Capture Stripe effectuée"
+                                  className="ml-1 inline-flex items-center gap-1 text-[10.5px] font-bold bg-success-soft text-success px-2 py-0.5 rounded-full"
+                                >
+                                  <Check className="w-3 h-3" aria-hidden />
+                                  Capt. {(cmd.montant_capture_ttc ?? cmd.total_ttc).toFixed(0)} €
+                                </span>
+                              ) : (
+                                <PriceTag
+                                  amount={cmd.total_ttc}
+                                  decimals={0}
+                                  className="ml-1"
+                                />
+                              )}
                             </span>
                           </div>
                           <div className="mt-3 flex gap-2">
