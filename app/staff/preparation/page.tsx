@@ -1,5 +1,10 @@
 "use client";
 
+// DEPRECATED 16/05/2026 : module remplacé par /v2/preparation.
+// Voir app/staff/preparation/DEPRECATED.md. Une redirection 301
+// est configurée dans next.config.mjs ; ce fichier reste pour
+// historique git et compat composants extraits dans lib/staff/.
+
 /**
  * /staff/preparation — Liste des commandes Drive à préparer
  *

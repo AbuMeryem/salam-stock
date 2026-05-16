@@ -7,6 +7,23 @@ const nextConfig = {
       { protocol: "https", hostname: "fastly.picsum.photos" },
     ],
   },
+  async redirects() {
+    return [
+      // /staff/preparation déprécié 2026-05-16 → /v2/preparation
+      // (cf. app/staff/preparation/DEPRECATED.md). 301 permanente pour
+      // que les bookmarks staff existants suivent.
+      {
+        source: "/staff/preparation",
+        destination: "/v2/preparation",
+        permanent: true,
+      },
+      {
+        source: "/staff/preparation/:id",
+        destination: "/v2/preparation/:id",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
