@@ -43,24 +43,9 @@ import {
   markLineWeighed,
 } from "@/lib/staff/preparation-actions";
 import { useStore } from "@/lib/store";
-
-// TODO_DEMO_10_JUIN: remplacer par auth Supabase câblée (Mission 4).
-// Supabase Auth côté salam-stock n'est pas encore branchée côté serveur
-// (zustand-local seulement). La route /api/stripe/capture-payment valide
-// strictement `user_id: z.string().uuid()` → le `currentUser.id` du
-// store (style "u-otmane") fait throw 400. En attendant Mission 4, on
-// hardcode l'UUID de digitalwebmastertlse@gmail.com (admin) pour
-// permettre la capture E2E en démo. Cf. BLOCKERS.md entrée B8.
-const HARDCODED_ADMIN_UUID = "5b58e718-d1e4-4e1d-8213-7d3792de1ff6";
-
-/** Renvoie un UUID exploitable par les server actions / API routes.
- *  Privilégie l'UUID zustand SI c'est un vrai UUID (préparation à
- *  Mission 4 où auth Supabase posera un vrai UUID dans le store), sinon
- *  fallback hardcodé admin. À retirer après Mission 4. */
-function getUserUuid(zustandId: string | null | undefined): string {
-  if (zustandId && /^[0-9a-f-]{36}$/i.test(zustandId)) return zustandId;
-  return HARDCODED_ADMIN_UUID;
-}
+// TODO_DEMO_10_JUIN : hack centralisé dans lib/staff/auth-fallback.ts
+// (cf. BLOCKERS.md B9), à retirer après Mission 4 (Supabase Auth câblée).
+import { getUserUuid } from "@/lib/staff/auth-fallback";
 import { formatCurrency } from "@/lib/utils/format";
 import type {
   CommandeDetail,
