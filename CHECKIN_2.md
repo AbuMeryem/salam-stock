@@ -239,7 +239,7 @@ Toutes les pièces sont prêtes. Voici les **URLs précises** :
 | A.3 | http://localhost:8081/produit/00000000-0030-0000-0000-000000000004 | Click bracket 1.2-1.5 kg → "Ajouter" | Toast + badge panier 2 |
 | B | http://localhost:8081/panier | Vérifier le détail | Total estimé `37,00 €`, bandeau jaune "Vous serez débité du poids réellement préparé", lien `/drive-au-poids` |
 | B.2 | http://localhost:8081/creneaux | Choisir un créneau retrait | Continuer |
-| C | http://localhost:8081/paiement | Saisir carte `4242 4242 4242 4242` `12/30` `123` → "Pré-autoriser 44,40 €" | Stripe Elements charge ; après confirmation → redirect `/commande/confirmee/<id>` |
+| C | http://localhost:8081/paiement | Saisir carte `4242 4242 4242 4242` `12/30` `123` → "Pré-autoriser X €" | Stripe Elements charge ; après confirmation → redirect `/commande/confirmee/<id>`. **Montant exact dépend du panier** ; cf. patch ci-dessous |
 | D | SQL Editor | `select * from commandes_drive order by created_at desc limit 1` | `stripe_payment_intent_id` non null, `montant_autorise_ttc ≈ 44.40`, `statut_paiement = 'autorise'` |
 | E | https://dashboard.stripe.com/test/payments | Click le dernier PI | `requires_capture`, amount 4440, capture_method manual, metadata.commande_id = UUID |
 | F.1 | http://localhost:3000/login | Connexion compte staff | Redirection `/staff/preparation` |
@@ -255,6 +255,76 @@ Toutes les pièces sont prêtes. Voici les **URLs précises** :
 > donc le `montant_autorise_ttc` sera `44.40` (37 × 1.20) et non
 > `41.40` (26.40 + 15). Ce n'est pas un bug fonctionnel, juste une
 > marge un peu plus large que strictement nécessaire sur le bracket.
+>
+> ✅ **CORRIGÉ 2026-05-16** (commits drive `200d3dc` + stock `b58e7f0`).
+> La marge 20 % s'applique désormais **uniquement aux lignes weight**.
+> Le bracket et l'unit passent sans marge. Cf. §7quater ci-dessous.
+
+---
+
+## 7quater — Patch Étape C : bug calcul Total + Pré-autoriser
+
+### Bug reproduit (signalé par l'user 2026-05-16, panier capture)
+
+Panier de test :
+- Merguez Salam Maison · 2,2 kg estimés · 48,40 €
+- 1 × Poulet fermier entier (bracket) · 15,00 €
+- Brochettes Poulet Marinées · 1,3 kg estimés · 20,80 €
+
+UI affichait :
+- "Total : 15,00 €" ❌ (au lieu de 84,20 €)
+- "Montant autorisé : 18,00 €" ❌ (= 15 × 1.20, au lieu de 98,04 €)
+
+### Cause racine
+
+`useCartTotalCents()` (`src/hooks/useCartSummary.ts:14-17`) sommait
+`product.priceCents × quantity` pour TOUTES les lignes. Or pour les
+lignes weight, `priceCents = 0` en DB (le prix vient de
+`price_per_kg × qty_kg`, calculé via `computePrixEstime`). Conséquence :
+les 2 lignes weight contribuaient 0 € au total agrégé → seul le
+bracket (1500 cts) survivait → total = 15 €. Puis `Math.round(15 * 1.20) = 18 €` pour le pré-autorisé.
+
+Le détail PAR LIGNE était correct car affiché via `computePrixEstime`
+(Checkout.tsx:269-275). C'est l'agrégation qui était cassée.
+
+### Fix appliqué
+
+**Source unique de vérité** : nouveau helper `computeCartTotalsCents`
+dans `src/lib/drive-pesee.ts` qui retourne
+`{ totalCents, weightCents, otherCents, autoriseCents, hasWeightLine }`.
+
+Règle métier validée :
+- Marge 20% **UNIQUEMENT** sur lignes weight, `Math.ceil(weight × 1.20)`
+- weight_bracket et unit passent SANS marge (forfait fixe)
+- `autoriseCents = ceil(weightCents × 1.2) + otherCents`
+
+5 endroits propagés :
+- `useCartSummary.useCartTotalCents` (drive)
+- `cartStore.getTotalCents` (drive)
+- `Checkout.tsx` (drive — preAuth + hasWeightLine via `totals`)
+- Edge Function `create-checkout-session` (drive serveur — calcule et
+  STOCKE `montant_autorise_ttc` dans `commandes_drive`)
+- `/api/stripe/create-payment-intent` (stock — LIT la valeur stockée
+  au lieu de recompute via × 1.20)
+
+### Validation panier reproduction → 98,04 €
+
+Avec le panier exact du bug :
+- weightCents = 4840 + 2080 = 6920 (= 48,40 € + 20,80 €)
+- otherCents = 1500 (bracket 15 €)
+- totalCents = 8420 (84,20 € ✅)
+- autoriseCents = ceil(6920 × 1.20) + 1500 = 8304 + 1500 = **9804** (98,04 € ✅)
+
+### Tests Vitest
+
+`src/test/drive-pesee.test.ts` enrichi de 8 cas dont la reproduction
+exacte du panier user (assert totalCents=8420, autoriseCents=9804).
+Total tests **93/93 passants** (85 → 93).
+
+### Commits
+
+- `200d3dc` (salamarket-drive `main`) : helper + propagation 5 endroits + tests
+- `b58e7f0` (salam-stock `chore/drive-products-view`) : lecture `montant_autorise_ttc` stocké
 
 **Quand tu as déroulé** :
 - ✅ Étapes A-H toutes vertes → pingue, on enchaîne Mission 4
