@@ -8,7 +8,10 @@ import {
   Camera,
   Check,
   Clock,
+  CreditCard,
+  Loader2,
   PackageMinus,
+  Scale,
   ScanBarcode,
   ShoppingBag,
   Snowflake,
@@ -37,9 +40,26 @@ import type {
   Depot,
   Produit,
 } from "@/lib/types/db";
+import {
+  computeEcartPct,
+  determineEcartAction,
+  type EcartAction,
+} from "@/lib/drive-pesee";
+import {
+  finalizePreparation,
+  markLineWeighed,
+} from "@/lib/staff/preparation-actions";
+import { getUserUuid } from "@/lib/staff/auth-fallback";
 
 interface EnrichedLigne extends CommandeDriveLigne {
   produit?: Produit;
+  /** Saisie locale du poids pesé (kg) pour unit_type='weight'. */
+  weighedKg?: string;
+  /** Bracket choisi pour unit_type='weight_bracket' (index dans la liste). */
+  weighedBracket?: number;
+  /** Indicateur "ligne sauvegardée côté server action". */
+  saved?: boolean;
+  saving?: boolean;
 }
 
 const COLD_CATEGORIES = new Set(["Surgelés", "Frais", "Boucherie", "Charcuterie"]);
@@ -180,8 +200,117 @@ export default function V2PreparationDetailPage() {
     void photoUrl;
   }
 
+  // ─── Drive au poids — helpers pesée ────────────────────────────────
+  /** Une ligne est "à peser" si son produit est weight ou weight_bracket. */
+  function isWeightLine(l: EnrichedLigne): boolean {
+    const ut = l.produit?.unit_type;
+    return ut === "weight" || ut === "weight_bracket";
+  }
+
+  /** Calcule le montant_reel_ttc d'une ligne weight/bracket selon la
+   *  saisie locale. Retourne null si saisie invalide. */
+  function computeMontantReel(l: EnrichedLigne): number | null {
+    const ut = l.produit?.unit_type ?? "unit";
+    if (ut === "weight") {
+      const kg = parseFloat(l.weighedKg ?? "");
+      if (!Number.isFinite(kg) || kg <= 0) return null;
+      const ppk = l.produit?.price_per_kg ?? 0;
+      if (ppk <= 0) return null;
+      return Math.round(ppk * kg * 100) / 100;
+    }
+    if (ut === "weight_bracket") {
+      // V1 : 1 seul bracket → prix forfait = prix_unitaire de la ligne
+      // (le bracket n'a actuellement qu'une valeur min-max-prix, le
+      // prix vient déjà de produits.price_cents capturé à la commande).
+      return l.prix_unitaire;
+    }
+    return null;
+  }
+
+  async function saveWeightLigne(l: EnrichedLigne) {
+    const montant = computeMontantReel(l);
+    if (montant == null) {
+      toast.error("Poids invalide");
+      return;
+    }
+    const ut = l.produit?.unit_type ?? "unit";
+    const quantiteReelle =
+      ut === "weight" ? parseFloat(l.weighedKg ?? "0") : (l.weighedBracket ?? 0) + 1;
+    setLignes((prev) =>
+      prev.map((x) => (x.id === l.id ? { ...x, saving: true } : x)),
+    );
+    const res = await markLineWeighed({
+      line_id: l.id,
+      quantite_reelle: quantiteReelle,
+      montant_reel_ttc: montant,
+      user_id: getUserUuid(employe?.id ?? null),
+    });
+    if (!res.ok) {
+      toast.error(`Sauvegarde échouée : ${res.error}`);
+      setLignes((prev) =>
+        prev.map((x) => (x.id === l.id ? { ...x, saving: false } : x)),
+      );
+      return;
+    }
+    setLignes((prev) =>
+      prev.map((x) =>
+        x.id === l.id
+          ? {
+              ...x,
+              saving: false,
+              saved: true,
+              statut_preparation: "prepare",
+              quantite_reelle_pesee: quantiteReelle,
+              montant_reel_ttc: montant,
+            }
+          : x,
+      ),
+    );
+    toast.success("Pesée enregistrée");
+  }
+
   async function finalize() {
     if (!commande) return;
+    // Branche Drive au poids — si la commande a un PI Stripe pré-
+    // autorisé, on capture via le server action AVANT de notifier.
+    // Sinon (commandes legacy 100% unit), flow scan + notify classique.
+    if (commande.statut_paiement === "autorise") {
+      const notDone = lignes.filter(
+        (l) =>
+          l.statut_preparation === "en_attente" ||
+          (isWeightLine(l) && !l.saved && l.quantite_reelle_pesee == null),
+      );
+      if (notDone.length > 0) {
+        toast.error(`${notDone.length} ligne(s) pas encore pesée(s)/préparée(s)`);
+        return;
+      }
+      const res = await finalizePreparation({
+        commande_id: commande.id,
+        user_id: getUserUuid(employe?.id ?? null),
+        lignes: lignes.map((l) => ({
+          id: l.id,
+          montant_estime_ttc: l.montant_estime_ttc ?? l.prix_unitaire * l.quantite,
+          montant_reel_ttc:
+            l.montant_reel_ttc ??
+            computeMontantReel(l) ??
+            l.montant_estime_ttc ??
+            l.prix_unitaire * l.quantite,
+        })),
+      });
+      if (!res.ok) {
+        toast.error(`Capture Stripe échouée : ${res.error}`);
+        return;
+      }
+      const captured = res.montantCaptureTtc;
+      toast.success(
+        captured != null
+          ? `${commande.numero_commande} : ${captured.toFixed(2)} € capturés via Stripe`
+          : `${commande.numero_commande} : finalisée (capture Stripe non confirmée — vérifier dashboard)`,
+      );
+      router.replace("/v2/preparation");
+      return;
+    }
+    // Flow legacy (sans Stripe pré-auto)
     const remaining = lignes.filter((l) => l.statut_preparation === "en_attente");
     if (remaining.length > 0) {
       toast.error(`${remaining.length} ligne(s) encore en attente`);
@@ -205,7 +334,24 @@ export default function V2PreparationDetailPage() {
   }
 
   const totalCount = lignes.length;
-  const prepCount = lignes.filter((l) => l.statut_preparation !== "en_attente").length;
+  // Une ligne weight est "préparée" si elle a été pesée (saved=true OU
+  // quantite_reelle_pesee renseignée) ; pour les lignes unit, le critère
+  // historique reste statut_preparation !== en_attente.
+  const prepCount = lignes.filter((l) => {
+    if (isWeightLine(l)) {
+      return l.saved === true || l.quantite_reelle_pesee != null;
+    }
+    return l.statut_preparation !== "en_attente";
+  }).length;
+  const isStripeFlow = commande?.statut_paiement === "autorise";
+  const sumReelEur = lignes.reduce((s, l) => {
+    if (isWeightLine(l)) {
+      const m =
+        l.montant_reel_ttc ?? computeMontantReel(l) ?? l.prix_unitaire * l.quantite;
+      return s + m;
+    }
+    return s + l.prix_unitaire * l.quantite;
+  }, 0);
 
   if (!commande) {
     return (
@@ -295,15 +441,16 @@ export default function V2PreparationDetailPage() {
                         </span>
                       </div>
                     </div>
-                    {l.statut_preparation === "prepare" && (
+                    {/* — Ligne UNIT : scan / manquant / Check classique — */}
+                    {!isWeightLine(l) && l.statut_preparation === "prepare" && (
                       <span className="text-success">
                         <Check className="w-5 h-5" />
                       </span>
                     )}
-                    {l.statut_preparation === "manquant" && (
+                    {!isWeightLine(l) && l.statut_preparation === "manquant" && (
                       <span className="badge badge-danger text-[10px]">Manquant</span>
                     )}
-                    {l.statut_preparation === "en_attente" && (
+                    {!isWeightLine(l) && l.statut_preparation === "en_attente" && (
                       <button
                         onClick={() => setMissingPhotoFor(l.id)}
                         className="text-xs font-bold text-danger px-2 py-1.5 rounded-lg bg-danger-soft inline-flex items-center gap-1"
@@ -311,6 +458,20 @@ export default function V2PreparationDetailPage() {
                         <PackageMinus className="w-3 h-3" />
                         Manquant
                       </button>
+                    )}
+                    {/* — Ligne WEIGHT/BRACKET : pesée Stripe — */}
+                    {isWeightLine(l) && (
+                      <WeightLineRow
+                        ligne={l}
+                        onChange={(patch) =>
+                          setLignes((prev) =>
+                            prev.map((x) =>
+                              x.id === l.id ? { ...x, ...patch } : x,
+                            ),
+                          )
+                        }
+                        onSave={() => saveWeightLigne(l)}
+                      />
                     )}
                   </motion.div>
                 );
@@ -329,14 +490,20 @@ export default function V2PreparationDetailPage() {
           >
             <div className="text-left">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
-                Marquer prêt
+                {isStripeFlow ? "Finaliser & capturer" : "Marquer prêt"}
               </p>
               <p className="text-[15px] font-extrabold mt-0.5">
-                {prepCount}/{totalCount} préparés
+                {isStripeFlow
+                  ? `${sumReelEur.toFixed(2)} €`
+                  : `${prepCount}/${totalCount} préparés`}
               </p>
             </div>
             <span className="bg-white/15 backdrop-blur-sm rounded-full p-2.5">
-              <ShoppingBag className="w-5 h-5" />
+              {isStripeFlow ? (
+                <CreditCard className="w-5 h-5" />
+              ) : (
+                <ShoppingBag className="w-5 h-5" />
+              )}
             </span>
           </button>
         </div>
@@ -358,6 +525,111 @@ export default function V2PreparationDetailPage() {
         }}
       />
     </V2Shell>
+  );
+}
+
+// ─── Composant pesée drive au poids (palette V2) ─────────────────────
+function WeightLineRow({
+  ligne,
+  onChange,
+  onSave,
+}: {
+  ligne: EnrichedLigne;
+  onChange: (patch: Partial<EnrichedLigne>) => void;
+  onSave: () => Promise<void> | void;
+}) {
+  const ut = ligne.produit?.unit_type ?? "unit";
+  const estimeTtc =
+    ligne.montant_estime_ttc ?? ligne.prix_unitaire * ligne.quantite;
+  const reelTtcLive =
+    ut === "weight"
+      ? (() => {
+          const kg = parseFloat(ligne.weighedKg ?? "");
+          if (!Number.isFinite(kg) || kg <= 0) return null;
+          const ppk = ligne.produit?.price_per_kg ?? 0;
+          return ppk > 0 ? ppk * kg : null;
+        })()
+      : ut === "weight_bracket"
+        ? ligne.prix_unitaire
+        : null;
+  const pct =
+    reelTtcLive != null && estimeTtc > 0
+      ? computeEcartPct(estimeTtc, reelTtcLive)
+      : 0;
+  const eurEcart =
+    reelTtcLive != null ? Number((reelTtcLive - estimeTtc).toFixed(2)) : 0;
+  const action: EcartAction | null =
+    reelTtcLive != null ? determineEcartAction(pct, eurEcart) : null;
+
+  return (
+    <div className="flex flex-col items-end gap-1.5 min-w-[140px]">
+      {/* Champ saisie selon le type */}
+      {ut === "weight" && (
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min="0"
+            placeholder="kg"
+            value={ligne.weighedKg ?? ""}
+            onChange={(e) => onChange({ weighedKg: e.target.value })}
+            className="w-20 px-2 py-1 rounded-lg border border-rule text-[13px] text-right tabular bg-cream focus:outline-none focus:border-primary"
+            aria-label={`Poids pesé ${ligne.produit?.nom ?? ""}`}
+          />
+          <span className="text-[10px] text-text-tertiary">kg</span>
+        </div>
+      )}
+      {ut === "weight_bracket" && (
+        <div className="text-[11px] text-text-secondary text-right">
+          <span className="font-semibold text-primary">
+            {ligne.produit?.poids_min_kg}-{ligne.produit?.poids_max_kg} kg
+          </span>
+          <span className="ml-1">· {ligne.prix_unitaire.toFixed(2)} €</span>
+        </div>
+      )}
+
+      {/* Badge écart live */}
+      {action && (
+        <span
+          className={
+            "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full " +
+            (action === "auto_accept"
+              ? "bg-success-soft text-success"
+              : action === "preparator_decision"
+                ? "bg-gold-soft text-primary-dark"
+                : action === "client_notify"
+                  ? "bg-warning-soft text-warning"
+                  : "bg-danger-soft text-danger")
+          }
+          title={`Écart ${pct.toFixed(1)}% (${eurEcart >= 0 ? "+" : ""}${eurEcart} €) — action ${action}`}
+        >
+          {pct >= 0 ? "+" : ""}
+          {pct.toFixed(1)}%
+        </span>
+      )}
+
+      {/* Bouton Enregistrer / état saved */}
+      {ligne.saved ? (
+        <span className="text-[10px] text-success inline-flex items-center gap-1">
+          <Check className="w-3 h-3" />
+          Pesée enregistrée
+        </span>
+      ) : (
+        <button
+          onClick={() => void onSave()}
+          disabled={ligne.saving || reelTtcLive == null}
+          className="text-[11px] font-bold text-white bg-primary px-2 py-1 rounded-lg disabled:opacity-50 inline-flex items-center gap-1"
+        >
+          {ligne.saving ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Scale className="w-3 h-3" />
+          )}
+          Enregistrer
+        </button>
+      )}
+    </div>
   );
 }
 
