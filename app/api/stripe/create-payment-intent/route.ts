@@ -60,10 +60,14 @@ export async function POST(req: Request) {
   const sb = supabaseServer();
 
   // 2. Charge la commande + lignes
+  // FIX 2026-05-16 : on lit montant_autorise_ttc stocké par l'Edge
+  // Function create-checkout-session (source unique de vérité). On
+  // garde le fallback compute legacy si la colonne est null (commandes
+  // créées avant ce fix).
   const { data: commande, error: errCmd } = await sb
     .from("commandes_drive")
     .select(
-      "id, statut_paiement, stripe_payment_intent_id, total_ttc, " +
+      "id, statut_paiement, stripe_payment_intent_id, total_ttc, montant_autorise_ttc, " +
         "commandes_drive_lignes (montant_estime_ttc, quantite, prix_unitaire)",
     )
     .eq("id", commande_id)
@@ -81,6 +85,7 @@ export async function POST(req: Request) {
     statut_paiement: string | null;
     stripe_payment_intent_id: string | null;
     total_ttc: number | string | null;
+    montant_autorise_ttc: number | string | null;
     commandes_drive_lignes: LigneRow[] | null;
   };
 
@@ -127,7 +132,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const montantAutoriseTtc = computeMontantAutorise(estimeTtc);
+  // FIX 2026-05-16 : préfère le montant_autorise_ttc stocké en DB par
+  // l'Edge Function create-checkout-session (source unique de vérité,
+  // marge appliquée SEULEMENT sur lignes weight). Fallback sur
+  // computeMontantAutorise (estimé × 1.20 sur tout) uniquement pour les
+  // commandes pré-fix (créées avant 2026-05-16) qui n'ont pas la
+  // colonne renseignée.
+  const storedAutorise = toNumber(cmd.montant_autorise_ttc);
+  const montantAutoriseTtc =
+    storedAutorise > 0 ? storedAutorise : computeMontantAutorise(estimeTtc);
   const montantAutoriseCentimes = Math.round(montantAutoriseTtc * 100);
 
   // 4. Crée le PaymentIntent côté Stripe
