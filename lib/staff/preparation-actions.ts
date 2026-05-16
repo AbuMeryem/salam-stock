@@ -25,8 +25,17 @@ export interface MarkLineWeighedInput {
   line_id: string;
   quantite_reelle: number;
   montant_reel_ttc: number;
+  /** UUID profiles.id (admin / manager / employee). Sert pour pese_par
+   *  + decision_par sur drive_ecarts_poids. */
   user_id?: string | null;
+  /** UUID employes.id (staff interne). Sert pour prepare_par_employe_id
+   *  qui référence la table `employes`, distincte de `profiles`. À
+   *  fournir séparément pour éviter un FK violation
+   *  (commandes_drive_lignes_prepare_par_employe_id_fkey). */
+  employe_id?: string | null;
 }
+
+const UUID_RE_LOCAL = /^[0-9a-f-]{36}$/i;
 
 export async function markLineWeighed(input: MarkLineWeighedInput): Promise<
   | { ok: true }
@@ -34,10 +43,15 @@ export async function markLineWeighed(input: MarkLineWeighedInput): Promise<
 > {
   const sb = supabaseServer();
   const userId =
-    input.user_id && /^[0-9a-f-]{36}$/i.test(input.user_id)
-      ? input.user_id
+    input.user_id && UUID_RE_LOCAL.test(input.user_id) ? input.user_id : null;
+  const employeId =
+    input.employe_id && UUID_RE_LOCAL.test(input.employe_id)
+      ? input.employe_id
       : null;
 
+  // UPDATE complet : pesée Stripe (pese_par) + marquage préparé pour
+  // que la ligne sorte de "en_attente" côté Kanban v2 (prepare_par_
+  // employe_id + statut_preparation + prepare_at).
   const { error } = await sb
     .from("commandes_drive_lignes")
     .update({
@@ -45,6 +59,9 @@ export async function markLineWeighed(input: MarkLineWeighedInput): Promise<
       montant_reel_ttc: input.montant_reel_ttc,
       pese_par: userId,
       pese_at: new Date().toISOString(),
+      statut_preparation: "prepare",
+      prepare_par_employe_id: employeId,
+      prepare_at: new Date().toISOString(),
     })
     .eq("id", input.line_id);
 

@@ -49,7 +49,7 @@ import {
   finalizePreparation,
   markLineWeighed,
 } from "@/lib/staff/preparation-actions";
-import { getUserUuid } from "@/lib/staff/auth-fallback";
+import { getEmployeUuid, getUserUuid } from "@/lib/staff/auth-fallback";
 
 interface EnrichedLigne extends CommandeDriveLigne {
   produit?: Produit;
@@ -156,9 +156,14 @@ export default function V2PreparationDetailPage() {
       return;
     }
     if (!employe) return;
+    // FIX 2026-05-17 : employes.id ≠ profiles.id. Le zustand local
+    // stocke un id non-UUID ("u-ahmed") ou un UUID profile. Pour la
+    // FK prepare_par_employe_id → employes(id), on passe par
+    // getEmployeUuid() qui fallback sur Ahmed Nasri.
+    const employeUuid = getEmployeUuid(employe.id);
     await updateLignePreparation(ligne.id, {
       statut_preparation: "prepare",
-      prepare_par_employe_id: employe.id,
+      prepare_par_employe_id: employeUuid,
       prepare_at: new Date().toISOString(),
     });
     setLignes((prev) =>
@@ -167,7 +172,7 @@ export default function V2PreparationDetailPage() {
           ? {
               ...l,
               statut_preparation: "prepare",
-              prepare_par_employe_id: employe.id,
+              prepare_par_employe_id: employeUuid,
               prepare_at: new Date().toISOString(),
             }
           : l
@@ -179,9 +184,10 @@ export default function V2PreparationDetailPage() {
 
   async function markMissing(ligneId: string, photoUrl: string) {
     if (!employe) return;
+    const employeUuid = getEmployeUuid(employe.id);
     await updateLignePreparation(ligneId, {
       statut_preparation: "manquant",
-      prepare_par_employe_id: employe.id,
+      prepare_par_employe_id: employeUuid,
       prepare_at: new Date().toISOString(),
     });
     setLignes((prev) =>
@@ -190,7 +196,7 @@ export default function V2PreparationDetailPage() {
           ? {
               ...l,
               statut_preparation: "manquant",
-              prepare_par_employe_id: employe.id,
+              prepare_par_employe_id: employeUuid,
               prepare_at: new Date().toISOString(),
             }
           : l
@@ -244,6 +250,7 @@ export default function V2PreparationDetailPage() {
       quantite_reelle: quantiteReelle,
       montant_reel_ttc: montant,
       user_id: getUserUuid(employe?.id ?? null),
+      employe_id: getEmployeUuid(employe?.id ?? null),
     });
     if (!res.ok) {
       toast.error(`Sauvegarde échouée : ${res.error}`);
