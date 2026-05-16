@@ -161,13 +161,13 @@ export async function finalizePreparation(
       }
     }
     // Si pas de baseUrl on saute la capture (dev local sans NEXT_PUBLIC_APP_URL) —
-    // l'UPDATE statut commande ci-dessous restera "prete_retrait" pour le tester.
+    // l'UPDATE statut commande ci-dessous restera "pret" pour le tester.
   }
 
   // 3. UPDATE statut de la commande
   const { error: errUpd } = await sb
     .from("commandes_drive")
-    .update({ statut: "prete_retrait" })
+    .update({ statut: "pret" })
     .eq("id", input.commande_id);
 
   if (errUpd) {
