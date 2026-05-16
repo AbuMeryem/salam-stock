@@ -29,6 +29,16 @@ export type LignePreparationStatus = "en_attente" | "prepare" | "manquant";
 export type ZonePreparationDrive = "particulier" | "professionnel" | "traiteur";
 export type ModePaiement = "stripe" | "en_magasin";
 
+/** Drive au poids — type catalogue (cf. migration 0029_drive_au_poids). */
+export type ProduitUnitType = "unit" | "weight" | "weight_bracket";
+
+/** Drive au poids — statut Stripe manual capture (cf. 0029). */
+export type StatutPaiementDrive =
+  | "autorise" // PI créé, capture pas encore faite
+  | "capture" // capture finalisée après pesée
+  | "libere" // annulation, pré-auto libérée
+  | "echec"; // payment_failed côté Stripe
+
 export interface Depot {
   id: string;
   nom: string;
@@ -51,6 +61,17 @@ export interface Produit {
   est_traiteur: boolean;
   /** Type de client cible — détermine le badge sur les commandes Drive. */
   client_type?: "particulier" | "pro" | "traiteur" | null;
+  // ── Drive au poids variable (migration 0029, optionnel pour
+  //    rétro-compatibilité avec les produits unit historiques) ────
+  /** Si absent ou 'unit' : prix forfait classique (price = price_cents). */
+  unit_type?: ProduitUnitType | null;
+  /** EUR/kg pour unit_type='weight'. */
+  price_per_kg?: number | null;
+  /** Estimation poids unitaire en kg (pour info UI). */
+  estimated_weight_kg?: number | null;
+  /** Bornes du bracket pour unit_type='weight_bracket'. */
+  poids_min_kg?: number | null;
+  poids_max_kg?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -165,6 +186,14 @@ export interface CommandeDrive {
   total_ttc: number;
   mode_paiement: ModePaiement;
   created_at: string;
+  // ── Drive au poids — Stripe manual capture (migration 0029) ────────
+  // Optionnels : commandes legacy (paiement en magasin / Checkout
+  // hosted classique) n'ont pas ces colonnes peuplées.
+  stripe_payment_intent_id?: string | null;
+  montant_autorise_ttc?: number | null;
+  montant_capture_ttc?: number | null;
+  statut_paiement?: StatutPaiementDrive | null;
+  autorisation_expire_at?: string | null;
 }
 
 export interface CommandeDriveLigne {
@@ -180,4 +209,11 @@ export interface CommandeDriveLigne {
   statut_preparation: LignePreparationStatus;
   prepare_par_employe_id: string | null;
   prepare_at: string | null;
+  // ── Drive au poids — pesée + écarts (migration 0029) ───────────────
+  quantite_estimee?: number | null;
+  quantite_reelle_pesee?: number | null;
+  montant_estime_ttc?: number | null;
+  montant_reel_ttc?: number | null;
+  pese_par?: string | null;
+  pese_at?: string | null;
 }
