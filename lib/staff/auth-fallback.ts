@@ -38,18 +38,25 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Renvoie un UUID `profiles.id` exploitable par les server actions /
  * API routes Stripe (pour pese_par, decision_par sur drive_ecarts_poids).
  *
- * - Si `zustandId` EST déjà un vrai UUID (forward-compat Mission 4 où
- *   auth Supabase posera un UUID auth.users.id dans le store) → on
- *   l'utilise tel quel.
- * - Sinon (string locale type "u-otmane" ou "emp_admin" ou null) →
- *   fallback sur l'UUID admin hardcodé.
+ * ⚠ V1 démo (tant que Mission 4 / Supabase Auth pas câblée) :
+ * **TOUJOURS** retourne `HARDCODED_ADMIN_UUID`. Le store zustand
+ * contient en V1 des UUIDs `employes.id` (Ahmed, Mehdi, Jamal). Ces
+ * UUIDs sont valides pour `prepare_par_employe_id` mais PAS pour
+ * `pese_par` qui référence `profiles.id`. Un forward-compat naïf
+ * (`if zustandId est un UUID → l'utiliser tel quel`) faisait planter
+ * la FK `pese_par_fkey` car UUID employes ≠ UUID profiles.
+ *
+ * Mission 4 réintroduira un vrai check : `auth.uid()` du JWT Supabase
+ * et lookup dans `profiles` côté server.
  *
  * @example
  *   const userId = getUserUuid(currentUser?.id);
  *   await markLineWeighed({ ..., user_id: userId });
  */
-export function getUserUuid(zustandId: string | null | undefined): string {
-  if (zustandId && UUID_RE.test(zustandId)) return zustandId;
+export function getUserUuid(_zustandId: string | null | undefined): string {
+  // TODO_DEMO_10_JUIN : forward-compat désactivé. Cf. BLOCKERS.md B9.
+  // À retirer + remettre la branche `if UUID_RE.test → return tel quel`
+  // une fois que le store contient l'UUID `profiles.id` (Mission 4).
   return HARDCODED_ADMIN_UUID;
 }
 
@@ -58,9 +65,16 @@ export function getUserUuid(zustandId: string | null | undefined): string {
  * référencent la table staff interne — `prepare_par_employe_id` sur
  * `commandes_drive_lignes`, `responsable_id` sur réceptions, etc.
  *
- * V1 démo : tout retourne Ahmed Nasri. À remplacer par lookup
- * dynamique en Mission 4 (`SELECT employes.id WHERE auth_user_id =
- * current_uid` ou autre mapping selon stratégie).
+ * ⚠ V1 démo (cohérent avec getUserUuid ci-dessus) : **TOUJOURS**
+ * retourne `HARDCODED_EMPLOYE_UUID` (Ahmed Nasri). Si on faisait
+ * confiance au zustand, un user connecté en tant qu'admin profile
+ * (UUID `5b58e718-…`) renverrait cet UUID admin pour
+ * `prepare_par_employe_id` → FK violation employes (l'admin n'est
+ * PAS dans la table `employes`).
+ *
+ * Mission 4 fera le mapping propre : `SELECT employes.id WHERE
+ * auth_user_id = current_uid` (probablement via une vue / fonction
+ * SQL dédiée pour éviter les round-trips).
  *
  * @example
  *   const employeId = getEmployeUuid(currentEmploye?.id ?? null);
@@ -69,8 +83,8 @@ export function getUserUuid(zustandId: string | null | undefined): string {
  *   });
  */
 export function getEmployeUuid(
-  zustandId: string | null | undefined,
+  _zustandId: string | null | undefined,
 ): string {
-  if (zustandId && UUID_RE.test(zustandId)) return zustandId;
+  // TODO_DEMO_10_JUIN : forward-compat désactivé (cf. getUserUuid).
   return HARDCODED_EMPLOYE_UUID;
 }
