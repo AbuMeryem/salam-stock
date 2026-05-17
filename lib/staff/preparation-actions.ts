@@ -128,12 +128,17 @@ export async function finalizePreparation(
       if (pct === 0) return null;
       const eur = l.montant_reel_ttc - l.montant_estime_ttc;
       const action: EcartAction = determineEcartAction(pct, eur);
+      // FIX 2026-05-17 : la colonne ecart_eur n'existe PAS dans la
+      // table drive_ecarts_poids (cf. migration 0029_drive_au_poids).
+      // Schéma réel : id, ligne_id, ecart_pct, action, decision_par,
+      // decision_at, notes. On encode l'écart en € dans `notes` pour
+      // traçabilité audit.
       return {
         ligne_id: l.id,
         ecart_pct: Number(pct.toFixed(4)),
-        ecart_eur: Number(eur.toFixed(2)),
         action,
         decision_par: userId,
+        notes: `Écart : ${eur >= 0 ? "+" : ""}${eur.toFixed(2)} € (estimé ${l.montant_estime_ttc.toFixed(2)} → réel ${l.montant_reel_ttc.toFixed(2)})`,
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -159,9 +164,15 @@ export async function finalizePreparation(
     montantCaptureTtc?: number;
   } = {};
   if (userId) {
+    // FIX 2026-05-17 : en dev local, ni NEXT_PUBLIC_APP_URL ni
+    // VERCEL_URL ne sont définies → le if(baseUrl) sautait l'appel
+    // capture, la commande passait à 'pret' sans capturer le PI Stripe
+    // (toast 'capture non confirmée'). Fallback explicite localhost:3000
+    // pour le dev. À ajuster si tu déploies sur un autre port.
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL ??
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+      "http://localhost:3000";
     if (baseUrl) {
       try {
         const res = await fetch(`${baseUrl}/api/stripe/capture-payment`, {
