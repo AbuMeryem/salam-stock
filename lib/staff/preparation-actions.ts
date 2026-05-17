@@ -49,6 +49,21 @@ export async function markLineWeighed(input: MarkLineWeighedInput): Promise<
       ? input.employe_id
       : null;
 
+  // DEBUG temporaire (2026-05-17) — à retirer après validation E2E.
+  // Si le browser garde un ancien bundle en cache, le user_id reçu ici
+  // peut être autre chose que l'UUID admin attendu. Logger côté serveur
+  // (terminal `npm run dev` salam-stock) pour vérifier la VRAIE valeur.
+  // eslint-disable-next-line no-console
+  console.log("[DEBUG markLineWeighed] payload envoyé :", {
+    line_id: input.line_id,
+    raw_user_id: input.user_id,
+    raw_employe_id: input.employe_id,
+    user_id_after_validation: userId,
+    employe_id_after_validation: employeId,
+    quantite_reelle: input.quantite_reelle,
+    montant_reel_ttc: input.montant_reel_ttc,
+  });
+
   // UPDATE complet : pesée Stripe (pese_par) + marquage préparé pour
   // que la ligne sorte de "en_attente" côté Kanban v2 (prepare_par_
   // employe_id + statut_preparation + prepare_at).
@@ -66,7 +81,7 @@ export async function markLineWeighed(input: MarkLineWeighedInput): Promise<
     .eq("id", input.line_id);
 
   if (error) {
-    console.error("[markLineWeighed]", error);
+    console.error("[markLineWeighed] DB error :", error);
     return { ok: false, error: error.message };
   }
   return { ok: true };
