@@ -170,7 +170,7 @@ export async function finalizePreparation(
     // (toast 'capture non confirmée'). Fallback explicite localhost:3000
     // pour le dev. À ajuster si tu déploies sur un autre port.
     const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ??
+      process.env.NEXT_PUBLIC_APP_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
       "http://localhost:3000";
     if (baseUrl) {
