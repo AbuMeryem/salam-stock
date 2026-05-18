@@ -279,15 +279,9 @@ export default function V2PreparationDetailPage() {
   async function finalize() {
     if (!commande) return;
     // Branche Drive au poids — si la commande a un PI Stripe pré-
-    // autorisé ET le stripe_payment_intent_id est bien en DB, on capture
-    // via le server action AVANT de notifier. Sinon (commandes legacy
-    // 100% unit OU commandes orphelines avec statut='autorise' mais sans
-    // PI en DB), on retombe sur le flow scan + notify classique pour
-    // éviter l'erreur 'payment_intent_manquant' côté API.
-    if (
-      commande.statut_paiement === "autorise" &&
-      commande.stripe_payment_intent_id
-    ) {
+    // autorisé, on capture via le server action AVANT de notifier.
+    // Sinon (commandes legacy 100% unit), flow scan + notify classique.
+    if (commande.statut_paiement === "autorise") {
       const notDone = lignes.filter(
         (l) =>
           l.statut_preparation === "en_attente" ||
@@ -356,9 +350,7 @@ export default function V2PreparationDetailPage() {
     }
     return l.statut_preparation !== "en_attente";
   }).length;
-  const isStripeFlow =
-    commande?.statut_paiement === "autorise" &&
-    !!commande?.stripe_payment_intent_id;
+  const isStripeFlow = commande?.statut_paiement === "autorise";
   const sumReelEur = lignes.reduce((s, l) => {
     if (isWeightLine(l)) {
       const m =
