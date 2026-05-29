@@ -220,9 +220,66 @@ export async function finalizePreparation(
     };
   }
 
+  // 4. Send "commande prête" email to client — fire-and-forget
+  try {
+    const { data: commande } = await sb
+      .from("commandes_drive")
+      .select("id, numero_commande, client_nom, client_email")
+      .eq("id", input.commande_id)
+      .maybeSingle();
+
+    if (commande?.client_email) {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+        "http://localhost:3000";
+      fetch(`${baseUrl}/api/email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: commande.client_email,
+          subject: "Votre commande Salamarket est prête !",
+          html: buildCommandePreteEmail(commande),
+        }),
+      }).catch(() => {}); // fire-and-forget
+    }
+  } catch {
+    // Never block the preparation flow
+  }
+
   return {
     ok: true,
     ecartsCount,
     ...captureResult,
   };
+}
+
+// ─── Email template "commande prête" ──────────────────────────────────
+function buildCommandePreteEmail(commande: {
+  id: string;
+  numero_commande?: string | null;
+  client_nom?: string | null;
+  client_email?: string | null;
+}): string {
+  const ref = commande.numero_commande || commande.id.slice(0, 8).toUpperCase();
+  const greeting = commande.client_nom ? ` ${commande.client_nom}` : "";
+  return `<div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
+  <div style="background: linear-gradient(180deg, #0E3B2E 0%, #082A20 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+    <h1 style="color: #C9A227; font-size: 20px; margin: 0;">Salamarket Drive</h1>
+  </div>
+  <div style="background: #FAF7EE; padding: 24px; border-radius: 0 0 12px 12px;">
+    <h2 style="color: #0E3B2E; font-size: 18px;">Votre commande est prête !</h2>
+    <p style="color: #0F1A14; font-size: 14px; line-height: 1.6;">
+      Bonjour${greeting},<br><br>
+      Votre commande <strong>${ref}</strong> est prête à être retirée.
+    </p>
+    <div style="background: white; border: 1px solid #E8E4D8; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0; font-size: 13px; color: #6B7280;">📍 Retrait au</p>
+      <p style="margin: 4px 0 0; font-size: 15px; font-weight: 600; color: #0E3B2E;">8 av. Larrieu-Thibaud, 31100 Toulouse</p>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #6B7280;">Lun-Sam 10h-19h30 · Dimanche 10h-18h</p>
+    </div>
+    <p style="color: #0F1A14; font-size: 14px;">À très vite !</p>
+    <p style="color: #6B7280; font-size: 12px; margin-top: 24px;">L'équipe Salamarket</p>
+  </div>
+</div>`;
 }

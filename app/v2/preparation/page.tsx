@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Clock,
   Lock,
@@ -41,6 +42,127 @@ interface CommandeWithLignes extends CommandeDrive {
 }
 
 type KanbanStatut = "a_preparer" | "en_preparation" | "pret" | "retire";
+type ViewMode = "kanban" | "batch";
+
+/* ── Batch Pick helpers ─────────────────────────────────────────────── */
+
+interface BatchProduct {
+  produit_id: string;
+  nom: string;
+  categorie: string;
+  totalQty: number;
+  unit: string; // "kg" or "pcs"
+  orderCount: number;
+  orders: { numero_commande: string; quantite: number }[];
+}
+
+interface BatchCategory {
+  categorie: string;
+  emoji: string;
+  products: BatchProduct[];
+  orderCount: number; // unique orders in this category
+}
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  Boucherie: "\u{1F969}",   // 🥩
+  Charcuterie: "\u{1F356}", // 🍖
+  "Surgelés": "\u{1F9CA}",  // 🧊
+  Frais: "\u{2744}\u{FE0F}",// ❄️
+  "Épicerie": "\u{1F6D2}",  // 🛒
+  Epicerie: "\u{1F6D2}",    // 🛒
+  Boissons: "\u{1F95B}",    // 🥛
+  "Fruits & Légumes": "\u{1F966}", // 🥦
+};
+
+/** Cold-chain first ordering for batch pick. */
+const CATEGORY_ORDER: string[] = [
+  "Surgelés",
+  "Frais",
+  "Boucherie",
+  "Charcuterie",
+];
+
+function getCategoryEmoji(cat: string): string {
+  return CATEGORY_EMOJI[cat] ?? "\u{1F4E6}"; // 📦
+}
+
+function buildBatchCategories(
+  commandes: CommandeWithLignes[],
+): BatchCategory[] {
+  const aPreparer = commandes.filter((c) => c.statut === "a_preparer");
+  const productMap = new Map<string, BatchProduct>();
+
+  for (const cmd of aPreparer) {
+    for (const l of cmd.lignes) {
+      const key = l.produit_id;
+      const existing = productMap.get(key);
+      const isWeight =
+        l.produit_unit_type === "weight" ||
+        l.produit_unit_type === "weight_bracket";
+      if (existing) {
+        existing.totalQty += l.quantite;
+        existing.orderCount += 1;
+        existing.orders.push({
+          numero_commande: cmd.numero_commande,
+          quantite: l.quantite,
+        });
+      } else {
+        productMap.set(key, {
+          produit_id: key,
+          nom: l.produit_nom ?? key,
+          categorie: l.produit_categorie ?? "Autre",
+          totalQty: l.quantite,
+          unit: isWeight ? "kg" : "pcs",
+          orderCount: 1,
+          orders: [
+            {
+              numero_commande: cmd.numero_commande,
+              quantite: l.quantite,
+            },
+          ],
+        });
+      }
+    }
+  }
+
+  // Group by category
+  const catMap = new Map<string, BatchProduct[]>();
+  for (const p of productMap.values()) {
+    const cat = p.categorie;
+    if (!catMap.has(cat)) catMap.set(cat, []);
+    catMap.get(cat)!.push(p);
+  }
+
+  // Sort products alphabetically within each category
+  for (const list of catMap.values()) {
+    list.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  }
+
+  // Build category list and sort: cold chain first, then alphabetical
+  const categories: BatchCategory[] = [];
+  for (const [cat, products] of catMap.entries()) {
+    const uniqueOrders = new Set(
+      products.flatMap((p) => p.orders.map((o) => o.numero_commande)),
+    );
+    categories.push({
+      categorie: cat,
+      emoji: getCategoryEmoji(cat),
+      products,
+      orderCount: uniqueOrders.size,
+    });
+  }
+
+  categories.sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.categorie);
+    const bi = CATEGORY_ORDER.indexOf(b.categorie);
+    const aIdx = ai >= 0 ? ai : CATEGORY_ORDER.length;
+    const bIdx = bi >= 0 ? bi : CATEGORY_ORDER.length;
+    if (aIdx !== bIdx) return aIdx - bIdx;
+    return a.categorie.localeCompare(b.categorie, "fr");
+  });
+
+  return categories;
+}
 
 const COLUMNS: Array<{
   key: KanbanStatut;
@@ -104,6 +226,16 @@ export default function V2PreparationKanbanPage() {
   const [actionFor, setActionFor] = useState<CommandeWithLignes | null>(null);
   const [updating, setUpdating] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
+  const [pickedProducts, setPickedProducts] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   async function reload() {
     // NOTE : /api/sync/drive-pull existe pour syncer les orders du
@@ -194,10 +326,73 @@ export default function V2PreparationKanbanPage() {
     return map;
   }, [commandes]);
 
+  const batchCategories = useMemo(
+    () => buildBatchCategories(commandes),
+    [commandes],
+  );
+
+  const totalBatchProducts = useMemo(
+    () => batchCategories.reduce((s, c) => s + c.products.length, 0),
+    [batchCategories],
+  );
+
+  const pickedCount = useMemo(() => {
+    let count = 0;
+    for (const cat of batchCategories) {
+      for (const p of cat.products) {
+        if (pickedProducts.has(p.produit_id)) count++;
+      }
+    }
+    return count;
+  }, [batchCategories, pickedProducts]);
+
+  function togglePicked(produitId: string) {
+    setPickedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(produitId)) next.delete(produitId);
+      else next.add(produitId);
+      return next;
+    });
+  }
+
+  function toggleExpanded(produitId: string) {
+    setExpandedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(produitId)) next.delete(produitId);
+      else next.add(produitId);
+      return next;
+    });
+  }
+
+  function toggleCategory(cat: string) {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
+
   async function advance(cmd: CommandeWithLignes, target: KanbanStatut) {
     setUpdating(true);
     try {
       await setCommandeStatut(cmd.id, target);
+      // Send "commande prête" email — fire-and-forget
+      if (target === "pret" && cmd.client_email) {
+        fetch("/api/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: cmd.client_email,
+            subject: "Votre commande Salamarket est prête !",
+            html: buildCommandePreteEmail({
+              id: cmd.id,
+              numero_commande: cmd.numero_commande,
+              client_nom: cmd.client_nom,
+            }),
+          }),
+        }).catch(() => {});
+      }
       const label =
         target === "en_preparation"
           ? "acceptée · en préparation"
@@ -241,11 +436,36 @@ export default function V2PreparationKanbanPage() {
             {isLive ? "Temps réel" : "Polling 12s"}
           </span>
         </div>
+
+        {/* View mode toggle */}
+        <div className="mt-4 inline-flex rounded-full p-0.5 bg-[#FAF7EE] border border-[#E8E4D8]">
+          <button
+            onClick={() => setViewMode("kanban")}
+            className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
+              viewMode === "kanban"
+                ? "bg-[#0E3B2E] text-white"
+                : "bg-white text-[#0E3B2E] border border-[#E8E4D8]"
+            }`}
+          >
+            Kanban
+          </button>
+          <button
+            onClick={() => setViewMode("batch")}
+            className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
+              viewMode === "batch"
+                ? "bg-[#0E3B2E] text-white"
+                : "bg-white text-[#0E3B2E] border border-[#E8E4D8]"
+            }`}
+          >
+            Batch Pick
+          </button>
+        </div>
       </header>
 
       {loading ? (
         <p className="px-5 py-10 text-center text-text-secondary">Chargement…</p>
-      ) : (
+      ) : viewMode === "kanban" ? (
+        /* ────────────────── KANBAN VIEW ────────────────── */
         <div className="px-5 mt-5 space-y-6 pb-12">
           {COLUMNS.map((col) => {
             const items = byColumn.get(col.key) ?? [];
@@ -376,6 +596,220 @@ export default function V2PreparationKanbanPage() {
             );
           })}
         </div>
+      ) : (
+        /* ────────────────── BATCH PICK VIEW ────────────────── */
+        <div className="px-5 mt-5 pb-28">
+          {/* Progress bar */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[13px] font-bold text-[#0F1A14]">
+                {pickedCount}/{totalBatchProducts} produits{" "}
+                {totalBatchProducts > 0 ? "récupérés" : ""}
+              </p>
+              <p className="text-[11px] font-bold text-[#6B7280]">
+                {totalBatchProducts > 0
+                  ? `${Math.round(
+                      (pickedCount / totalBatchProducts) * 100,
+                    )}%`
+                  : "0%"}
+              </p>
+            </div>
+            <div className="h-2.5 rounded-full bg-[#E8E4D8] overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-[#C9A227]"
+                initial={{ width: 0 }}
+                animate={{
+                  width:
+                    totalBatchProducts > 0
+                      ? `${(pickedCount / totalBatchProducts) * 100}%`
+                      : "0%",
+                }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+
+          {batchCategories.length === 0 ? (
+            <div className="border border-[#E8E4D8] rounded-2xl p-6 text-center text-[13px] text-[#6B7280] bg-[#FAF7EE]">
+              Aucune commande en attente de préparation.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {batchCategories.map((cat) => {
+                const isCollapsed = collapsedCategories.has(cat.categorie);
+                return (
+                  <section key={cat.categorie}>
+                    {/* Category header */}
+                    <button
+                      onClick={() => toggleCategory(cat.categorie)}
+                      className="w-full flex items-center justify-between bg-[#FAF7EE] rounded-lg px-3.5 py-2.5 mb-2"
+                    >
+                      <span className="text-[13px] font-bold text-[#0F1A14]">
+                        {cat.emoji} {cat.categorie} ({cat.products.length}{" "}
+                        produit{cat.products.length > 1 ? "s" : ""},{" "}
+                        {cat.orderCount} commande
+                        {cat.orderCount > 1 ? "s" : ""})
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-[#6B7280] transition-transform ${
+                          isCollapsed ? "-rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* Product rows */}
+                    <AnimatePresence initial={false}>
+                      {!isCollapsed && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-2">
+                            {cat.products.map((product) => {
+                              const isPicked = pickedProducts.has(
+                                product.produit_id,
+                              );
+                              const isExpanded = expandedProducts.has(
+                                product.produit_id,
+                              );
+                              return (
+                                <div
+                                  key={product.produit_id}
+                                  className={`bg-white rounded-lg border border-[#E8E4D8] transition-opacity ${
+                                    isPicked ? "opacity-50" : ""
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 p-3">
+                                    {/* Checkbox */}
+                                    <button
+                                      onClick={() =>
+                                        togglePicked(product.produit_id)
+                                      }
+                                      className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                        isPicked
+                                          ? "bg-[#0E3B2E] border-[#0E3B2E]"
+                                          : "border-[#E8E4D8] bg-white"
+                                      }`}
+                                    >
+                                      {isPicked && (
+                                        <Check className="w-3.5 h-3.5 text-white" />
+                                      )}
+                                    </button>
+
+                                    {/* Product info — tap to expand */}
+                                    <button
+                                      onClick={() =>
+                                        toggleExpanded(product.produit_id)
+                                      }
+                                      className="flex-1 min-w-0 text-left"
+                                    >
+                                      <p
+                                        className={`text-[13px] font-bold text-[#0F1A14] ${
+                                          isPicked ? "line-through" : ""
+                                        }`}
+                                      >
+                                        {product.nom}
+                                      </p>
+                                    </button>
+
+                                    {/* Quantity + orders badge */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span
+                                        className={`text-[13px] font-bold tabular-nums text-[#0F1A14] ${
+                                          isPicked ? "line-through" : ""
+                                        }`}
+                                      >
+                                        {product.unit === "kg"
+                                          ? `${product.totalQty.toFixed(
+                                              product.totalQty % 1 === 0
+                                                ? 0
+                                                : 1,
+                                            )} kg`
+                                          : `${product.totalQty}`}
+                                      </span>
+                                      <span className="text-[10.5px] font-bold text-[#6B7280] bg-[#FAF7EE] px-2 py-0.5 rounded-full">
+                                        {product.orderCount} cmd
+                                        {product.orderCount > 1 ? "s" : ""}
+                                      </span>
+                                      <ChevronDown
+                                        className={`w-3.5 h-3.5 text-[#6B7280] transition-transform ${
+                                          isExpanded ? "" : "-rotate-90"
+                                        }`}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Per-order breakdown */}
+                                  <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                      <motion.div
+                                        initial={{
+                                          height: 0,
+                                          opacity: 0,
+                                        }}
+                                        animate={{
+                                          height: "auto",
+                                          opacity: 1,
+                                        }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="px-3 pb-3 pt-0 border-t border-[#E8E4D8]">
+                                          <div className="pt-2 space-y-1">
+                                            {product.orders.map((o, i) => (
+                                              <div
+                                                key={i}
+                                                className="flex items-center justify-between text-[12px] text-[#6B7280]"
+                                              >
+                                                <span className="font-medium">
+                                                  {o.numero_commande}
+                                                </span>
+                                                <span className="tabular-nums">
+                                                  {product.unit === "kg"
+                                                    ? `${o.quantite.toFixed(
+                                                        o.quantite % 1 === 0
+                                                          ? 0
+                                                          : 1,
+                                                      )} kg`
+                                                    : `${o.quantite}`}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </section>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bottom CTA */}
+          {totalBatchProducts > 0 && (
+            <div className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t border-[#E8E4D8] px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button
+                onClick={() => setViewMode("kanban")}
+                className="w-full bg-[#0E3B2E] text-white rounded-full py-3.5 px-5 flex items-center justify-center gap-2 text-[14px] font-bold active:scale-[0.99] transition-transform"
+              >
+                Dispatcher par commande
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Action sheet */}
@@ -455,4 +889,32 @@ export default function V2PreparationKanbanPage() {
       </AnimatePresence>
     </V2Shell>
   );
+}
+
+function buildCommandePreteEmail(commande: {
+  id: string;
+  numero_commande?: string | null;
+  client_nom?: string | null;
+}): string {
+  const ref = commande.numero_commande || commande.id.slice(0, 8).toUpperCase();
+  const greeting = commande.client_nom ? ` ${commande.client_nom}` : "";
+  return `<div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
+  <div style="background: linear-gradient(180deg, #0E3B2E 0%, #082A20 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+    <h1 style="color: #C9A227; font-size: 20px; margin: 0;">Salamarket Drive</h1>
+  </div>
+  <div style="background: #FAF7EE; padding: 24px; border-radius: 0 0 12px 12px;">
+    <h2 style="color: #0E3B2E; font-size: 18px;">Votre commande est prête !</h2>
+    <p style="color: #0F1A14; font-size: 14px; line-height: 1.6;">
+      Bonjour${greeting},<br><br>
+      Votre commande <strong>${ref}</strong> est prête à être retirée.
+    </p>
+    <div style="background: white; border: 1px solid #E8E4D8; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0; font-size: 13px; color: #6B7280;">📍 Retrait au</p>
+      <p style="margin: 4px 0 0; font-size: 15px; font-weight: 600; color: #0E3B2E;">8 av. Larrieu-Thibaud, 31100 Toulouse</p>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #6B7280;">Lun-Sam 10h-19h30 · Dimanche 10h-18h</p>
+    </div>
+    <p style="color: #0F1A14; font-size: 14px;">À très vite !</p>
+    <p style="color: #6B7280; font-size: 12px; margin-top: 24px;">L'équipe Salamarket</p>
+  </div>
+</div>`;
 }

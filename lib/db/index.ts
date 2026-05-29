@@ -967,6 +967,8 @@ export async function listLignesPourCommande(
  */
 export type CommandeDriveLigneWithUnitType = CommandeDriveLigne & {
   produit_unit_type?: ProduitUnitType | null;
+  produit_nom?: string | null;
+  produit_categorie?: string | null;
 };
 
 export async function listLignesPourCommandeAvecUnitType(
@@ -976,20 +978,25 @@ export async function listLignesPourCommandeAvecUnitType(
   if (sb) {
     const { data, error } = await sb
       .from("commandes_drive_lignes")
-      .select("*, produits(unit_type)")
+      .select("*, produits(unit_type, nom, categorie)")
       .eq("commande_id", commandeId);
     if (error) throw error;
     type Row = CommandeDriveLigne & {
-      produits?: { unit_type?: ProduitUnitType | null } | null;
+      produits?: { unit_type?: ProduitUnitType | null; nom?: string | null; categorie?: string | null } | null;
     };
     return ((data ?? []) as Row[]).map((r) => ({
       ...r,
       produit_unit_type: r.produits?.unit_type ?? null,
+      produit_nom: r.produits?.nom ?? null,
+      produit_categorie: r.produits?.categorie ?? null,
     }));
   }
   // Mode local seed : pas de jointure, on devine via SEED_PRODUITS
   return SEED_COMMANDE_LIGNES.filter((l) => l.commande_id === commandeId).map(
-    (l) => ({ ...l, produit_unit_type: null }),
+    (l) => {
+      const p = SEED_PRODUITS.find((x) => x.id === l.produit_id);
+      return { ...l, produit_unit_type: null, produit_nom: p?.nom ?? null, produit_categorie: p?.categorie ?? null };
+    },
   );
 }
 

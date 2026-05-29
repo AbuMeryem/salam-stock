@@ -225,10 +225,7 @@ export default function V2PreparationDetailPage() {
       return Math.round(ppk * kg * 100) / 100;
     }
     if (ut === "weight_bracket") {
-      // V1 : 1 seul bracket → prix forfait = prix_unitaire de la ligne
-      // (le bracket n'a actuellement qu'une valeur min-max-prix, le
-      // prix vient déjà de produits.price_cents capturé à la commande).
-      return l.prix_unitaire;
+      return Math.round((l.prix_unitaire ?? 0) * (l.quantite ?? 1) * 100) / 100;
     }
     return null;
   }
@@ -336,6 +333,22 @@ export default function V2PreparationDetailPage() {
         },
       }),
     });
+    // Send "commande prête" email — fire-and-forget
+    if (commande.client_email) {
+      fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: commande.client_email,
+          subject: "Votre commande Salamarket est prête !",
+          html: buildCommandePreteEmail({
+            id: commande.id,
+            numero_commande: commande.numero_commande,
+            client_nom: commande.client_nom,
+          }),
+        }),
+      }).catch(() => {});
+    }
     toast.success(`Commande ${commande.numero_commande} prête. Client notifié.`);
     router.replace("/v2/preparation");
   }
@@ -393,7 +406,7 @@ export default function V2PreparationDetailPage() {
         </button>
       </section>
 
-      <section className="px-5 mt-5 space-y-4 pb-cta-only">
+      <section className="px-5 mt-5 space-y-4">
         {groupedByZone.map((group) => (
           <div key={group.zone}>
             <p className="label-caps text-text-tertiary mb-2 inline-flex items-center gap-1">
@@ -645,4 +658,32 @@ function formatHeure(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function buildCommandePreteEmail(commande: {
+  id: string;
+  numero_commande?: string | null;
+  client_nom?: string | null;
+}): string {
+  const ref = commande.numero_commande || commande.id.slice(0, 8).toUpperCase();
+  const greeting = commande.client_nom ? ` ${commande.client_nom}` : "";
+  return `<div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
+  <div style="background: linear-gradient(180deg, #0E3B2E 0%, #082A20 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+    <h1 style="color: #C9A227; font-size: 20px; margin: 0;">Salamarket Drive</h1>
+  </div>
+  <div style="background: #FAF7EE; padding: 24px; border-radius: 0 0 12px 12px;">
+    <h2 style="color: #0E3B2E; font-size: 18px;">Votre commande est prête !</h2>
+    <p style="color: #0F1A14; font-size: 14px; line-height: 1.6;">
+      Bonjour${greeting},<br><br>
+      Votre commande <strong>${ref}</strong> est prête à être retirée.
+    </p>
+    <div style="background: white; border: 1px solid #E8E4D8; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0; font-size: 13px; color: #6B7280;">📍 Retrait au</p>
+      <p style="margin: 4px 0 0; font-size: 15px; font-weight: 600; color: #0E3B2E;">8 av. Larrieu-Thibaud, 31100 Toulouse</p>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #6B7280;">Lun-Sam 10h-19h30 · Dimanche 10h-18h</p>
+    </div>
+    <p style="color: #0F1A14; font-size: 14px;">À très vite !</p>
+    <p style="color: #6B7280; font-size: 12px; margin-top: 24px;">L'équipe Salamarket</p>
+  </div>
+</div>`;
 }
