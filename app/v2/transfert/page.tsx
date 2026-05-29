@@ -343,7 +343,7 @@ export default function V2TransfertPage() {
 
       {/* QUANTITÉ + PHOTO */}
       {produit && (
-        <section className="px-5 mt-6 space-y-4 pb-cta-only">
+        <section className="px-5 mt-6 space-y-4">
           <div>
             <p className="label-caps text-text-tertiary mb-2">Quantité à transférer</p>
             <input

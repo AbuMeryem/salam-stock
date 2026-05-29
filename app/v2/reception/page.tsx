@@ -516,7 +516,7 @@ export default function V2ReceptionPage() {
           </section>
 
           {/* ─── RÉCEPTION LIBRE ─────────────────────────────────── */}
-          <section className="px-5 mt-6 pb-cta-only">
+          <section className="px-5 mt-6">
             <p className="label-caps text-text-tertiary mb-2">
               Réception libre
             </p>
@@ -634,7 +634,7 @@ export default function V2ReceptionPage() {
             </button>
           </section>
 
-          <section className="px-5 mt-5 pb-cta-only">
+          <section className="px-5 mt-5">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-bold text-text-primary">
                 {scans.length} ligne{scans.length > 1 ? "s" : ""} scannée

@@ -112,7 +112,7 @@ const ACTION_LABEL: Record<EcartAction, string> = {
 
 function ecartColor(pct: number): string {
   const abs = Math.abs(pct);
-  if (abs < 10) return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  if (abs < 10) return "bg-[#F4E9C4]/50 text-[#0E3B2E] ring-[#0E3B2E]/20";
   if (abs <= 20) return "bg-amber-50 text-amber-700 ring-amber-200";
   return "bg-red-50 text-red-700 ring-red-200";
 }
@@ -245,16 +245,16 @@ export function PreparationWorkflow({
   return (
     <div className="space-y-6">
       {/* Header commande */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-[#E8E4D8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
               {commande.numero_commande}
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-900">
+            <h2 className="mt-1 text-2xl font-bold text-[#0F1A14]">
               {commande.client_nom}
             </h2>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#6B7280]">
               {commande.client_telephone && (
                 <span>{commande.client_telephone}</span>
               )}
@@ -270,11 +270,11 @@ export function PreparationWorkflow({
             </div>
           </div>
           <div className="text-right">
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#F4E9C4] px-3 py-1 text-xs font-semibold uppercase text-[#0E3B2E]">
               <CreditCard className="h-3 w-3" />
               {commande.statut_paiement ?? "autorise"}
             </span>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-[#6B7280]">
               {totals.pesees}/{totals.total} lignes pesées
             </p>
           </div>
@@ -290,12 +290,12 @@ export function PreparationWorkflow({
                 ? formatCurrency(commande.montant_autorise_ttc)
                 : "—"
             }
-            tone="emerald"
+            tone="brand"
           />
           <Stat
             label="Réel pesé"
             value={formatCurrency(totals.reel)}
-            tone={overAutorise ? "red" : "slate"}
+            tone={overAutorise ? "red" : "default"}
           />
         </div>
       </div>
@@ -320,11 +320,11 @@ export function PreparationWorkflow({
       </ul>
 
       {/* Footer sticky */}
-      <div className="sticky bottom-0 -mx-4 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-[#E8E4D8] bg-white/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-slate-600">
+          <div className="text-sm text-[#6B7280]">
             {allReady ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+              <span className="inline-flex items-center gap-1 font-semibold text-[#0E3B2E]">
                 <CheckCircle2 className="h-4 w-4" />
                 Toutes les lignes sont pesées
               </span>
@@ -340,7 +340,7 @@ export function PreparationWorkflow({
             type="button"
             disabled={!allReady || submitting || overAutorise}
             onClick={handleFinalize}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0E3B2E] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#082A20] disabled:cursor-not-allowed disabled:bg-[#6B7280]"
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -360,21 +360,21 @@ export function PreparationWorkflow({
 function Stat({
   label,
   value,
-  tone = "slate",
+  tone = "default",
 }: {
   label: string;
   value: string;
-  tone?: "slate" | "emerald" | "red";
+  tone?: "default" | "brand" | "red";
 }) {
   const toneClass =
-    tone === "emerald"
-      ? "text-emerald-700"
+    tone === "brand"
+      ? "text-[#0E3B2E]"
       : tone === "red"
         ? "text-red-700"
-        : "text-slate-900";
+        : "text-[#0F1A14]";
   return (
-    <div className="rounded-xl bg-slate-50 px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+    <div className="rounded-xl bg-[#FAF7EE] px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">
         {label}
       </p>
       <p className={`mt-1 text-xl font-bold ${toneClass}`}>{value}</p>
@@ -410,12 +410,12 @@ function LigneCard({
     <div
       className={`rounded-2xl border bg-white p-4 shadow-sm transition ${
         ligne.saved
-          ? "border-emerald-200 bg-emerald-50/30"
-          : "border-slate-200"
+          ? "border-[#0E3B2E]/20 bg-[#F4E9C4]/20"
+          : "border-[#E8E4D8]"
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FAF7EE]">
           {ligne.produit?.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -424,14 +424,14 @@ function LigneCard({
               className="h-12 w-12 rounded-xl object-cover"
             />
           ) : (
-            <ShoppingBag className="h-5 w-5 text-slate-400" />
+            <ShoppingBag className="h-5 w-5 text-[#6B7280]" />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="truncate text-base font-bold text-slate-900">
+          <p className="truncate text-base font-bold text-[#0F1A14]">
             {ligne.produit?.nom ?? "Produit"}
           </p>
-          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#6B7280]">
             <span>
               Commandé : <strong>{ligne.quantite_commandee}</strong>
               {ut === "weight" ? " kg" : ""}
@@ -451,7 +451,7 @@ function LigneCard({
           </div>
         </div>
         {ligne.saved && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase text-emerald-700">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F4E9C4] px-2 py-1 text-[11px] font-semibold uppercase text-[#0E3B2E]">
             <Check className="h-3 w-3" /> sauvegardée
           </span>
         )}
@@ -459,27 +459,27 @@ function LigneCard({
 
       <div className="mt-4">
         {ut === "unit" && (
-          <label className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 cursor-pointer">
+          <label className="flex items-center gap-3 rounded-xl bg-[#FAF7EE] px-4 py-3 cursor-pointer">
             <input
               type="checkbox"
               checked={ligne.unit_done}
               onChange={(e) => {
                 onChange({ unit_done: e.target.checked });
               }}
-              className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-5 w-5 rounded border-[#E8E4D8] text-[#0E3B2E] focus:ring-[#0E3B2E]"
             />
-            <span className="text-sm font-medium text-slate-900">
+            <span className="text-sm font-medium text-[#0F1A14]">
               {ligne.unit_done ? "Article prêt" : "Marquer comme préparé"}
             </span>
-            <span className="ml-auto text-sm font-bold text-slate-900">
+            <span className="ml-auto text-sm font-bold text-[#0F1A14]">
               {formatCurrency(liveMontant)}
             </span>
           </label>
         )}
 
         {ut === "weight" && (
-          <div className="rounded-xl bg-slate-50 p-4">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="rounded-xl bg-[#FAF7EE] p-4">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
               Poids réel pesé (kg)
             </label>
             <div className="mt-2 flex items-center gap-3">
@@ -494,18 +494,18 @@ function LigneCard({
                   const v = e.target.value;
                   onChange({ poids_kg: v === "" ? null : parseFloat(v) });
                 }}
-                className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-32 rounded-lg border border-[#E8E4D8] bg-white px-3 py-2 text-lg font-semibold text-[#0F1A14] focus:border-[#0E3B2E] focus:outline-none focus:ring-1 focus:ring-[#0E3B2E]"
               />
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-[#6B7280]">
                 × {formatCurrency(Number(ligne.produit?.price_per_kg ?? 0))}/kg
               </span>
-              <span className="ml-auto text-lg font-bold text-slate-900">
+              <span className="ml-auto text-lg font-bold text-[#0F1A14]">
                 {formatCurrency(liveMontant)}
               </span>
             </div>
             {ligne.produit?.poids_min_kg != null &&
               ligne.produit?.poids_max_kg != null && (
-                <p className="mt-2 text-[11px] text-slate-500">
+                <p className="mt-2 text-[11px] text-[#6B7280]">
                   Fourchette attendue : {ligne.produit.poids_min_kg} kg →{" "}
                   {ligne.produit.poids_max_kg} kg
                 </p>
@@ -514,8 +514,8 @@ function LigneCard({
         )}
 
         {ut === "weight_bracket" && (
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="rounded-xl bg-[#FAF7EE] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
               Choisir une tranche
             </p>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -526,13 +526,13 @@ function LigneCard({
                   onClick={() => onChange({ bracket_index: i })}
                   className={`rounded-lg border px-3 py-2 text-left transition ${
                     ligne.bracket_index === i
-                      ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200"
-                      : "border-slate-200 bg-white hover:border-slate-300"
+                      ? "border-[#0E3B2E] bg-[#F4E9C4] ring-2 ring-[#0E3B2E]/20"
+                      : "border-[#E8E4D8] bg-white hover:border-[#0E3B2E]/30"
                   }`}
                 >
-                  <p className="text-sm font-bold text-slate-900">{b.label}</p>
-                  <p className="text-xs text-slate-500">{b.poids_kg} kg</p>
-                  <p className="mt-1 text-sm font-semibold text-emerald-700">
+                  <p className="text-sm font-bold text-[#0F1A14]">{b.label}</p>
+                  <p className="text-xs text-[#6B7280]">{b.poids_kg} kg</p>
+                  <p className="mt-1 text-sm font-semibold text-[#0E3B2E]">
                     {formatCurrency(Number(b.prix_ttc))}
                   </p>
                 </button>
@@ -567,14 +567,14 @@ function LigneCard({
             </span>
           </div>
         ) : (
-          <span className="text-xs text-slate-400">En attente de saisie…</span>
+          <span className="text-xs text-[#6B7280]">En attente de saisie…</span>
         )}
 
         <button
           type="button"
           disabled={!hasSaisie || ligne.saving}
           onClick={() => void onPersist()}
-          className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-[#0E3B2E]/20 bg-[#F4E9C4] px-3 py-1.5 text-xs font-semibold text-[#0E3B2E] transition hover:bg-[#F4E9C4]/80 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {ligne.saving ? (
             <Loader2 className="h-3 w-3 animate-spin" />

@@ -196,7 +196,7 @@ export default function V2InventairePage() {
           Aucun inventaire assigné aujourd&apos;hui.
         </div>
       ) : (
-        <section className="px-5 mt-5 space-y-3 pb-cta-only">
+        <section className="px-5 mt-5 space-y-3">
           <div className="bg-gold-soft rounded-2xl p-3 flex items-start gap-2 text-xs text-primary-dark">
             <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
             <p>

@@ -325,7 +325,7 @@ export default function V2SortiePage() {
 
       {/* TYPE */}
       {produit && (
-        <section className={`px-5 mt-6 ${!type ? "pb-cta-only" : ""}`}>
+        <section className="px-5 mt-6">
           <p className="section-eyebrow mb-3">Motif de sortie</p>
           <div className="grid grid-cols-2 gap-2.5">
             {TYPES.map((t) => {
@@ -396,7 +396,7 @@ export default function V2SortiePage() {
 
       {/* QUANTITÉ + PHOTO */}
       {produit && type && (
-        <section className="px-5 mt-6 space-y-4 pb-cta-only">
+        <section className="px-5 mt-6 space-y-4">
           <div>
             <p className="label-caps text-text-tertiary mb-2">Quantité</p>
             <input

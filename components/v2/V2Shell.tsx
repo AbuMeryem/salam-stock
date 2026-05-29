@@ -151,7 +151,7 @@ export function V2Shell({
       <div className="mx-auto w-full max-w-[460px] min-h-screen relative bg-cream">
         {/* HEADER — refonte L99 : 3 zones (logo+identité / dépôt / actions admin),
             une ligne, breathing room, hiérarchie claire (logo-name-role). */}
-        <header className="sticky top-0 z-30 bg-cream/92 backdrop-blur-xl border-b border-rule/60">
+        <header className="sticky top-0 z-30 bg-gradient-to-b from-[#0E3B2E] to-[#082A20] backdrop-blur-xl">
           <div className="flex items-center gap-2.5 px-4 pt-3 pb-3 safe-top">
             {/* Bloc identité — clickable vers accueil */}
             <Link
@@ -161,10 +161,10 @@ export function V2Shell({
             >
               <V2Logo size={32} />
               <div className="min-w-0 leading-tight">
-                <p className="text-[14px] font-extrabold text-text-primary tracking-tight truncate">
+                <p className="text-[14px] font-extrabold text-white tracking-tight truncate">
                   {employe.prenom}
                 </p>
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-text-secondary truncate">
+                <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#C9A227] truncate">
                   {employe.role === "admin"
                     ? "Admin"
                     : employe.role === "manager"
@@ -180,7 +180,7 @@ export function V2Shell({
             <AdminMenu role={employe.role} />
             <button
               onClick={logout}
-              className="w-9 h-9 rounded-full bg-white border border-rule flex items-center justify-center text-text-secondary active:scale-95 transition-transform"
+              className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:text-white active:scale-95 transition-all"
               aria-label="Déconnexion"
             >
               <LogOut className="w-4 h-4" />
@@ -198,7 +198,7 @@ export function V2Shell({
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className={`${className} ${hideNav ? "pb-10" : "pb-nav-stack"} pt-2`}
+          className={`${className} ${hideNav ? "pb-cta-only" : "pb-nav-stack"} pt-2`}
         >
           {!depot && (
             <div className="px-5 pt-6">
@@ -222,7 +222,7 @@ export function V2Shell({
           >
             <div className="mx-auto max-w-[460px] px-3 pb-2 pt-2 pointer-events-auto">
               <div
-                className="bg-white rounded-[24px] border border-rule px-2 py-2 flex items-center gap-1"
+                className="bg-white/95 backdrop-blur-md rounded-[24px] border border-rule px-2 py-2 flex items-center gap-1"
                 style={{
                   boxShadow:
                     "0 1px 2px rgba(14,59,46,0.08), 0 6px 16px rgba(14,59,46,0.08)",

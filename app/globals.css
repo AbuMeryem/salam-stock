@@ -28,7 +28,7 @@
   /* Nav bottom flottant : pill effective ~78px (icon 36 + label 14 +
      paddings 16 + py-2 outer). Le token doit refléter la hauteur
      visuelle réelle pour que pb-nav-stack laisse une vraie clearance. */
-  --nav-height: 80px;
+  --nav-height: 96px;
   --cta-height: 80px;
   /* Espace de respiration au-dessus du nav. Règle UX : le contenu
      ne doit jamais être collé contre le pill nav. 48px = un peu plus

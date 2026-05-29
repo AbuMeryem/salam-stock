@@ -355,7 +355,7 @@ export default function RecapFiscalPage() {
 
       {/* Actions */}
       {summary && summary.status === "ok" && (
-        <section className="px-5 mt-5 pb-cta-only space-y-2.5">
+        <section className="px-5 mt-5 space-y-2.5">
           <button
             onClick={downloadPdf}
             className="w-full bg-primary text-white rounded-[18px] py-3.5 px-4 flex items-center justify-between shadow-card active:scale-[0.99] transition-transform"

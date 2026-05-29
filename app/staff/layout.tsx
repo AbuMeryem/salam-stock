@@ -49,18 +49,18 @@ export default function StaffLayout({
   if (!ALLOWED_ROLES.has(currentUser.role)) return <FullPageLoader />;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="min-h-screen bg-[#FAF7EE]">
+      <header className="sticky top-0 z-30 border-b border-[#E8E4D8] bg-[#FAF7EE]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0E3B2E] text-white">
               <ScanLine className="h-5 w-5" />
             </div>
             <div className="leading-tight">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
                 Salam Drive · Staff
               </p>
-              <p className="text-sm font-bold text-slate-900">
+              <p className="text-sm font-bold text-[#0F1A14]">
                 Préparation commandes
               </p>
             </div>
@@ -71,8 +71,8 @@ export default function StaffLayout({
               href="/staff/preparation"
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 pathname?.startsWith("/staff/preparation")
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-[#F4E9C4] text-[#0E3B2E]"
+                  : "text-[#6B7280] hover:bg-[#F4E9C4]/50"
               }`}
             >
               <PackageCheck className="mr-1 inline h-4 w-4" />
@@ -82,10 +82,10 @@ export default function StaffLayout({
 
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-[#0F1A14]">
                 {currentUser.name}
               </p>
-              <p className="text-[11px] uppercase tracking-wide text-slate-500">
+              <p className="text-[11px] uppercase tracking-wide text-[#6B7280]">
                 {currentUser.role}
               </p>
             </div>
@@ -95,7 +95,7 @@ export default function StaffLayout({
                 logout();
                 router.replace("/login");
               }}
-              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              className="rounded-lg border border-[#E8E4D8] bg-white p-2 text-[#6B7280] hover:bg-[#FAF7EE] hover:text-[#0F1A14]"
               aria-label="Déconnexion"
             >
               <LogOut className="h-4 w-4" />

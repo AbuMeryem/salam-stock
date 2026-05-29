@@ -92,7 +92,7 @@ export default function ImportCashmagPage() {
       )}
 
       {result && (
-        <section className="px-5 mt-4 space-y-3 pb-cta-only">
+        <section className="px-5 mt-4 space-y-3">
           <div className={`rounded-[18px] p-4 border ${
             result.ok ? "bg-success-soft border-success/30"
               : result.inserted > 0 ? "bg-warning-soft border-warning/30"

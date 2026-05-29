@@ -207,7 +207,7 @@ export default function RapportMensuelPage() {
               hint={`Frais Stripe ${fr2(report.drive.frais_stripe)} · Net ${fr2(report.drive.net)}`} />
           </section>
 
-          <section className="px-5 mt-6 pb-cta-only space-y-2.5">
+          <section className="px-5 mt-6 space-y-2.5">
             <p className="section-eyebrow mb-2"><FileText className="w-3 h-3" />Pour ton comptable</p>
             <button onClick={downloadPdf}
               className="w-full bg-primary text-white rounded-[18px] py-3.5 px-4 flex items-center justify-between shadow-card active:scale-[0.99] transition-transform">
